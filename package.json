@@ -1,0 +1,30 @@
+{
+  "name": "bharati-connect",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "packages/*"
+  ],
+  "packageManager": "npm@10.8.1",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.5",
+    "turbo": "^2.1.2",
+    "typescript": "^5.4.5"
+  },
+  "dependencies": {
+    "@types/ms": "^2.1.0",
+    "axios": "^1.20.0",
+    "cloudinary": "^2.11.0",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
+    "ms": "^2.1.3"
+  }
+}
