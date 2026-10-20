@@ -22,6 +22,5 @@ const NotificationSchema: Schema = new Schema({
 });
 
 NotificationSchema.index({ userId: 1, readAt: 1 });
-NotificationSchema.index({ createdAt: 1 }); // Required for TTL index even if implicitly created by expires option
 
 export const Notification = mongoose.model<INotification>('Notification', NotificationSchema);

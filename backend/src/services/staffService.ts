@@ -5,6 +5,7 @@ import { env } from '../config/env';
 import { Role } from '@shared/types';
 import { NotFoundError, ValidationError, ConflictError } from '../utils/AppError';
 import { AuditLog } from '../models/AuditLog';
+import { RefreshToken } from '../models/RefreshToken';
 
 export class StaffService {
   static async createStaff(data: any, adminId: string) {
@@ -128,6 +129,8 @@ export class StaffService {
 
     user.active = false;
     await user.save();
+
+    await RefreshToken.updateMany({ userId }, { revoked: true });
 
     await AuditLog.create({
       actorId: adminId,

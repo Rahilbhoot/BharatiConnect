@@ -13,6 +13,8 @@ router.post('/login', loginLimiter, validate(loginSchema), AuthController.login)
 router.post('/refresh', apiLimiter, validate(refreshSchema), AuthController.refresh);
 router.post('/logout', authenticate, AuthController.logout);
 router.post('/accept-invite', apiLimiter, validate(acceptInviteSchema), AuthController.acceptInvite);
+router.post('/forgot-password', apiLimiter, AuthController.forgotPassword);
+router.post('/reset-password', apiLimiter, AuthController.resetPassword);
 router.post('/two-factor/login', loginLimiter, AuthController.verifyTwoFactor);
 
 // 2FA Setup for admin/owner

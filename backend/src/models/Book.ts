@@ -26,7 +26,10 @@ const BookSchema: Schema = new Schema({
   createdBy: { type: Schema.Types.ObjectId, ref: 'User' }
 }, { timestamps: true });
 
-BookSchema.index({ title: 'text', author: 'text' });
+BookSchema.index(
+  { title: 'text', author: 'text' },
+  { default_language: 'none', language_override: 'none' }
+);
 BookSchema.index({ staffPick: 1 });
 BookSchema.index({ language: 1 });
 BookSchema.index({ genre: 1 });

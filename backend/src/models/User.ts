@@ -21,6 +21,8 @@ export interface IUser extends Document {
   twoFactorEnabled: boolean;
   inviteToken?: string;
   inviteExpiresAt?: Date;
+  resetPasswordToken?: string;
+  resetPasswordExpires?: Date;
   failedLoginAttempts: number;
   lockoutUntil?: Date;
   photoConsentGiven: boolean;
@@ -30,8 +32,8 @@ export interface IUser extends Document {
 
 const UserSchema: Schema = new Schema({
   name: { type: String, required: true },
-  email: { type: String, unique: true, sparse: true },
-  phone: { type: String, unique: true, sparse: true },
+  email: { type: String },
+  phone: { type: String },
   passwordHash: { type: String, required: true },
   role: { type: String, enum: Object.values(Role), default: Role.Staff },
   departmentId: { type: Schema.Types.ObjectId, ref: 'Department' },
@@ -48,6 +50,8 @@ const UserSchema: Schema = new Schema({
   twoFactorEnabled: { type: Boolean, default: false },
   inviteToken: { type: String },
   inviteExpiresAt: { type: Date },
+  resetPasswordToken: { type: String },
+  resetPasswordExpires: { type: Date },
   failedLoginAttempts: { type: Number, default: 0 },
   lockoutUntil: { type: Date },
   photoConsentGiven: { type: Boolean, default: false },

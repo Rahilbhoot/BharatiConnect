@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { AppFrame } from "@/components/AppFrame";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { actions } from "../lib/store";
 
 function NotFoundComponent() {
   return (
@@ -122,6 +123,10 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    actions.hydrate();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

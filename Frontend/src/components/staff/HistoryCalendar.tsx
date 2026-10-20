@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,
@@ -10,6 +11,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useAppState } from "@/lib/store";
+import { api, tokenStore } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const dotColor: Record<string, string> = {
@@ -35,7 +37,38 @@ export function HistoryCalendar() {
   const key = (d: number) =>
     `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
 
-  const dayLogs = logs.filter((l) => l.date === selected && l.userId === sessionUser?.id);
+  const { data: historyData } = useQuery({
+    queryKey: ["reading-history-month", year, month + 1],
+    queryFn: async () => {
+      if (!tokenStore.access()) return null;
+      try {
+        const { data } = await api.get(`/reading/me/history?month=${month + 1}&year=${year}&limit=100`);
+        return data?.logs || [];
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!tokenStore.access(),
+  });
+
+  const apiLoggedDates = new Set((historyData || []).map((l: any) => l.date));
+  const activeDayStates: Record<string, string> = { ...dayStates };
+  apiLoggedDates.forEach((dateStr) => {
+    activeDayStates[dateStr as string] = "logged";
+  });
+
+  const selectedApiLogs = (historyData || []).filter((l: any) => l.date === selected);
+  const dayLogs = selectedApiLogs.length > 0
+    ? selectedApiLogs.map((l: any) => ({
+        id: String(l._id || l.id),
+        bookTitle: l.bookId?.title || "Book",
+        fromPage: l.startPage,
+        toPage: l.currentPage,
+        pages: l.pagesRead,
+        note: l.note,
+      }))
+    : logs.filter((l) => l.date === selected && l.userId === sessionUser?.id);
+
   const dayHoliday = holidays.find((h) => h.date === selected);
 
   return (
@@ -67,7 +100,7 @@ export function HistoryCalendar() {
         {Array.from({ length: days }).map((_, i) => {
           const d = i + 1;
           const k = key(d);
-          const state = dayStates[k];
+          const state = activeDayStates[k];
           return (
             <button
               key={k}
@@ -107,7 +140,7 @@ export function HistoryCalendar() {
             {dayLogs.length === 0 && !dayHoliday && (
               <p className="text-sm text-muted-foreground">{t("common.none")}</p>
             )}
-            {dayLogs.map((l) => (
+            {dayLogs.map((l: any) => (
               <div key={l.id} className="rounded-xl border border-border p-3">
                 <p className="text-sm font-medium">{l.bookTitle}</p>
                 <p className="text-xs text-muted-foreground">

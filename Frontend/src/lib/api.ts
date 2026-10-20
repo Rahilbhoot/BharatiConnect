@@ -69,8 +69,13 @@ api.interceptors.response.use(
  * explored in the browser preview.
  */
 export async function fetchWithFallback<T>(path: string, fallback: T): Promise<T> {
-  const { data } = await api.get<T>(path);
-  return data;
+  try {
+    const { data } = await api.get<T>(path);
+    return data;
+  } catch {
+    demoMode.value = true;
+    return fallback;
+  }
 }
 
 export const demoMode = { value: false };

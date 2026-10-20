@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import * as demo from "./demo-data";
+import { api, tokenStore } from "./api";
 import type {
   AppNotification,
   AuditEntry,
@@ -46,11 +47,35 @@ export interface AppState {
   lastCelebration: { points: number; streak: number } | null;
 }
 
+export function normalizeUser(raw: any): User {
+  if (!raw) return demo.currentUser;
+  return {
+    id: String(raw.id || raw._id || ""),
+    name: raw.name || "Member",
+    email: raw.email || "",
+    phone: raw.phone || "",
+    role: raw.role || "staff",
+    departmentId: String(raw.departmentId?._id || raw.departmentId || "d1"),
+    active: raw.active !== false,
+    streak: raw.currentStreak ?? raw.streak ?? 0,
+    points: raw.points ?? 0,
+    level: typeof raw.level === "number"
+      ? raw.level
+      : (raw.points ? Math.floor(raw.points / 100) + 1 : 1),
+    language: raw.language === "en" ? "en" : "mr",
+    reminderTime: raw.reminderTime || "20:00",
+    joinedAt: raw.createdAt
+      ? new Date(raw.createdAt).toISOString().slice(0, 10)
+      : demo.iso(new Date()),
+    avatarColor: raw.avatarColor || "#6366f1",
+  };
+}
+
 const initial: AppState = {
   language: "mr",
   theme: "light",
-  sessionUser: demo.currentUser,
-  adminUser: demo.adminUser,
+  sessionUser: null,
+  adminUser: null,
   adminAuthed: false,
   departments: demo.departments,
   staff: demo.staff,
@@ -107,10 +132,15 @@ function logAudit(action: string, target: string, before?: string, after?: strin
   set({ audit: [entry, ...state.audit] });
 }
 
+let hydratingPromise: Promise<void> | null = null;
+
 export const actions = {
   setLanguage(language: Language) {
     set({ language });
     if (typeof window !== "undefined") localStorage.setItem("bc.lang", language);
+    if (tokenStore.access()) {
+      api.patch("/me/profile", { language }).catch(() => {});
+    }
   },
   setTheme(theme: "light" | "dark") {
     set({ theme });
@@ -122,15 +152,27 @@ export const actions = {
   setReminderTime(time: string) {
     if (!state.sessionUser) return;
     set({ sessionUser: { ...state.sessionUser, reminderTime: time } });
+    if (tokenStore.access()) {
+      api.patch("/me/profile", { reminderTime: time }).catch(() => {});
+    }
   },
-  login(user?: User) {
-    set({ sessionUser: user ?? demo.currentUser });
+  login(user?: any) {
+    const normalized = user ? normalizeUser(user) : demo.currentUser;
+    set({ sessionUser: normalized });
+    if (normalized.role === "admin" || normalized.role === "owner") {
+      set({ adminAuthed: true, adminUser: normalized });
+    }
   },
   logout() {
-    set({ sessionUser: null });
+    if (tokenStore.refresh()) {
+      api.post("/auth/logout", { refreshToken: tokenStore.refresh() }).catch(() => {});
+    }
+    tokenStore.clear();
+    set({ sessionUser: null, adminAuthed: false, adminUser: null });
   },
-  adminLogin() {
-    set({ adminAuthed: true, adminUser: demo.adminUser });
+  adminLogin(user?: any) {
+    const normalized = user ? normalizeUser(user) : demo.adminUser;
+    set({ adminAuthed: true, adminUser: normalized });
   },
   adminLogout() {
     set({ adminAuthed: false });
@@ -143,6 +185,7 @@ export const actions = {
     const pages = Math.max(0, input.toPage - book.currentPage);
     const points = 10 + Math.min(40, pages);
     const today = demo.iso(new Date());
+
     const log: ReadingLog = {
       id: uid(),
       userId: user.id,
@@ -157,6 +200,8 @@ export const actions = {
       ...(input.proof ? { proofUrl: input.proof, proofOutcome: "needs_review" as ProofOutcome } : {}),
     };
     const streak = user.streak + (state.todayLogged ? 0 : 1);
+
+    // Optimistic update
     set({
       logs: [log, ...state.logs],
       books: state.books.map((b) =>
@@ -178,48 +223,91 @@ export const actions = {
           : c,
       ),
     });
+
+    // Call backend API if authenticated
+    if (tokenStore.access()) {
+      api.post("/reading/check-in", {
+        bookId: input.bookId,
+        currentPage: input.toPage,
+        note: input.note,
+      }).then(({ data }) => {
+        if (data?.currentStreak) {
+          set((s) => ({
+            sessionUser: s.sessionUser ? { ...s.sessionUser, streak: data.currentStreak } : null,
+          }));
+        }
+      }).catch((err) => {
+        console.warn("CheckIn API call fell back to local store:", err?.message);
+      });
+    }
   },
+
   clearCelebration() {
     set({ lastCelebration: null });
   },
 
   addBook(book: Omit<Book, "id" | "currentPage" | "coverColor">) {
     const colors = ["#6366f1", "#10B981", "#F59E0B", "#0ea5e9", "#8b5cf6", "#ef4444"];
-    set({
-      books: [
-        ...state.books,
-        {
-          ...book,
-          id: uid(),
-          currentPage: 0,
-          coverColor: colors[state.books.length % colors.length]!,
-          shortRead: book.totalPages < 150,
-        },
-      ],
-    });
+    const newBook: Book = {
+      ...book,
+      id: uid(),
+      currentPage: 0,
+      coverColor: colors[state.books.length % colors.length]!,
+      shortRead: book.totalPages < 150,
+    };
+    set({ books: [...state.books, newBook] });
+
+    if (tokenStore.access()) {
+      api.post("/me/shelf", {
+        bookId: newBook.id,
+        status: book.status,
+      }).catch(() => {});
+    }
   },
+
   setBookStatus(id: string, status: BookStatus) {
     if (
       status === "reading" &&
       state.books.filter((b) => b.status === "reading" && b.id !== id).length >= 3
-    )
+    ) {
       return false;
+    }
     set({ books: state.books.map((b) => (b.id === id ? { ...b, status } : b)) });
+
+    if (tokenStore.access()) {
+      api.patch(`/me/shelf/${id}`, { status }).catch(() => {});
+    }
     return true;
   },
+
   rateBook(id: string, rating: number, review: string) {
     set({ books: state.books.map((b) => (b.id === id ? { ...b, rating, review } : b)) });
+    if (tokenStore.access()) {
+      api.patch(`/me/shelf/${id}`, { rating, review }).catch(() => {});
+    }
   },
 
   joinChallenge(id: string) {
     set({ challenges: state.challenges.map((c) => (c.id === id ? { ...c, joined: true } : c)) });
+    if (tokenStore.access()) {
+      api.post(`/challenges/${id}/join`).catch(() => {});
+    }
   },
+
   markNoticeRead(id: string) {
     set({ notices: state.notices.map((n) => (n.id === id ? { ...n, read: true } : n)) });
+    if (tokenStore.access()) {
+      api.post(`/notices/${id}/read`).catch(() => {});
+    }
   },
+
   markWatched(id: string) {
     set({ videos: state.videos.map((v) => (v.id === id ? { ...v, watched: true } : v)) });
+    if (tokenStore.access()) {
+      api.post(`/videos/${id}/watched`).catch(() => {});
+    }
   },
+
   addSuggestion(title: string, author: string) {
     set({
       suggestions: [
@@ -233,18 +321,29 @@ export const actions = {
         ...state.suggestions,
       ],
     });
+    if (tokenStore.access()) {
+      api.post("/suggestions/books", { title, author }).catch(() => {});
+    }
   },
+
   setSuggestionStatus(id: string, status: Suggestion["status"]) {
     set({ suggestions: state.suggestions.map((s) => (s.id === id ? { ...s, status } : s)) });
     logAudit(`suggestion.${status}`, id);
+    if (tokenStore.access()) {
+      api.patch(`/admin/suggestions/${id}`, { status }).catch(() => {});
+    }
   },
+
   markNotificationRead(id: string) {
     set({
       notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
     });
+    if (tokenStore.access()) {
+      api.post(`/me/notifications/${id}/read`).catch(() => {});
+    }
   },
 
-  // Admin
+  // Admin actions
   addStaff(input: { name: string; email: string; phone: string; departmentId: string }) {
     const user: User = {
       ...input,
@@ -261,24 +360,40 @@ export const actions = {
     };
     set({ staff: [user, ...state.staff] });
     logAudit("staff.invite", user.name, undefined, "invited");
+
+    if (tokenStore.access()) {
+      api.post("/admin/users", input).catch(() => {});
+    }
     return `${typeof window === "undefined" ? "" : window.location.origin}/invite?token=${uid()}${uid()}`;
   },
+
   toggleStaffActive(id: string) {
     const target = state.staff.find((s) => s.id === id);
     set({ staff: state.staff.map((s) => (s.id === id ? { ...s, active: !s.active } : s)) });
-    if (target)
+    if (target) {
       logAudit(
         target.active ? "staff.deactivate" : "staff.reactivate",
         target.name,
         target.active ? "active" : "inactive",
         target.active ? "inactive" : "active",
       );
+      if (tokenStore.access()) {
+        api.post(`/admin/users/${id}/deactivate`).catch(() => {});
+      }
+    }
   },
+
   setStaffRole(id: string, role: Role) {
     const target = state.staff.find((s) => s.id === id);
     set({ staff: state.staff.map((s) => (s.id === id ? { ...s, role } : s)) });
-    if (target) logAudit("staff.role", target.name, target.role, role);
+    if (target) {
+      logAudit("staff.role", target.name, target.role, role);
+      if (tokenStore.access()) {
+        api.patch(`/admin/users/${id}/role`, { role }).catch(() => {});
+      }
+    }
   },
+
   saveDepartment(dept: { id?: string; nameEn: string; nameMr: string }) {
     if (dept.id) {
       set({
@@ -287,35 +402,62 @@ export const actions = {
         ),
       });
       logAudit("department.update", dept.nameEn);
+      if (tokenStore.access()) {
+        api.patch(`/admin/departments/${dept.id}`, {
+          name: { en: dept.nameEn, mr: dept.nameMr },
+        }).catch(() => {});
+      }
     } else {
       set({
         departments: [...state.departments, { id: uid(), ...dept, staffCount: 0 }],
       });
       logAudit("department.create", dept.nameEn);
+      if (tokenStore.access()) {
+        api.post("/admin/departments", {
+          name: { en: dept.nameEn, mr: dept.nameMr },
+        }).catch(() => {});
+      }
     }
   },
+
   deleteDepartment(id: string) {
     const d = state.departments.find((x) => x.id === id);
     set({ departments: state.departments.filter((x) => x.id !== id) });
-    if (d) logAudit("department.delete", d.nameEn);
+    if (d) {
+      logAudit("department.delete", d.nameEn);
+      if (tokenStore.access()) {
+        api.delete(`/admin/departments/${id}`).catch(() => {});
+      }
+    }
   },
+
   reviewProof(logId: string, outcome: ProofOutcome, reason?: string) {
     const log = state.logs.find((l) => l.id === logId);
     set({
       logs: state.logs.map((l) => (l.id === logId ? { ...l, proofOutcome: outcome } : l)),
     });
-    if (log)
+    if (log) {
       logAudit(
         `proof.${outcome}`,
         `${log.userName} — ${log.bookTitle}${reason ? ` (${reason})` : ""}`,
         "needs_review",
         outcome,
       );
+      if (tokenStore.access()) {
+        const decision = outcome === "accepted" ? "accepted" : "rejected";
+        api.post(`/admin/proof-reviews/${logId}/decision`, { decision, reason }).catch(() => {});
+      }
+    }
   },
+
   adjustMissedDay(date: string, target: string) {
     set({ dayStates: { ...state.dayStates, [date]: "logged" } });
     logAudit("reading.manual_adjust", `${target} — ${date}`, "missed", "logged");
+    if (tokenStore.access()) {
+      api.post("/admin/reading/add-day", { date, targetUserId: target }).catch(() => {});
+    }
   },
+
   addNotice(notice: Omit<Notice, "id" | "read" | "publishedAt">) {
     set({
       notices: [
@@ -324,7 +466,16 @@ export const actions = {
       ],
     });
     logAudit("notice.publish", notice.titleEn);
+    if (tokenStore.access()) {
+      api.post("/admin/notices", {
+        title: { en: notice.titleEn, mr: notice.titleMr },
+        body: { en: notice.bodyEn, mr: notice.bodyMr },
+        priority: notice.priority,
+        pinned: notice.pinned,
+      }).catch(() => {});
+    }
   },
+
   addPost(post: Omit<Post, "id" | "publishedAt" | "authorName">) {
     set({
       posts: [
@@ -338,36 +489,84 @@ export const actions = {
       ],
     });
     logAudit("post.publish", post.bodyEn.slice(0, 40));
+    if (tokenStore.access()) {
+      api.post("/admin/posts", {
+        body: { en: post.bodyEn, mr: post.bodyMr },
+        images: post.images,
+      }).catch(() => {});
+    }
   },
+
   addVideo(video: Omit<Video, "id" | "watched">) {
     set({ videos: [{ ...video, id: uid(), watched: false }, ...state.videos] });
     logAudit("video.create", video.titleEn);
+    if (tokenStore.access()) {
+      api.post("/admin/videos", {
+        youtubeUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,
+        category: video.category,
+        language: video.language,
+        description: { en: video.titleEn, mr: video.titleMr },
+      }).catch(() => {});
+    }
   },
+
   pinTip(id: string) {
     set({ videos: state.videos.map((v) => ({ ...v, pinnedTip: v.id === id })) });
     logAudit("video.pin_ai_tip", id);
+    if (tokenStore.access()) {
+      api.patch(`/admin/videos/${id}`, { pinnedTip: true }).catch(() => {});
+    }
   },
+
   saveChallenge(challenge: Omit<Challenge, "id" | "progress" | "joined">) {
     set({
       challenges: [...state.challenges, { ...challenge, id: uid(), progress: 0, joined: false }],
     });
     logAudit("challenge.create", challenge.titleEn);
+    if (tokenStore.access()) {
+      api.post("/admin/challenges", {
+        title: { en: challenge.titleEn, mr: challenge.titleMr },
+        description: { en: challenge.titleEn, mr: challenge.titleMr },
+        target: challenge.target,
+        type: challenge.type,
+        startDate: new Date().toISOString(),
+        endDate: new Date(challenge.endsOn).toISOString(),
+        rewardPoints: challenge.rewardPoints,
+      }).catch(() => {});
+    }
   },
+
   addHoliday(entry: Omit<HolidayEntry, "id">) {
     set({ holidays: [...state.holidays, { ...entry, id: uid() }] });
     logAudit(`calendar.${entry.type}`, entry.labelEn);
+    if (tokenStore.access()) {
+      api.post("/admin/holidays", {
+        date: entry.date,
+        name: { en: entry.labelEn, mr: entry.labelMr },
+        type: entry.type,
+      }).catch(() => {});
+    }
   },
+
   removeHoliday(id: string) {
     set({ holidays: state.holidays.filter((h) => h.id !== id) });
     logAudit("calendar.delete", id);
+    if (tokenStore.access()) {
+      api.delete(`/admin/holidays/${id}`).catch(() => {});
+    }
   },
+
   updateSettings(patch: Partial<Settings>) {
     const before = state.settings;
     set({ settings: { ...before, ...patch } });
     Object.entries(patch).forEach(([k, v]) =>
       logAudit("settings.update", k, String(before[k as keyof Settings]), String(v)),
     );
+    if (tokenStore.access()) {
+      api.patch("/admin/settings", patch).catch(() => {});
+    }
   },
+
   createAdmin(input: { name: string; email: string; departmentId: string }) {
     const user: User = {
       ...input,
@@ -385,15 +584,101 @@ export const actions = {
     };
     set({ staff: [user, ...state.staff] });
     logAudit("admin.create", user.name, undefined, "admin");
-  },
-  hydrate() {
-    if (typeof window === "undefined") return;
-    const lang = localStorage.getItem("bc.lang") as Language | null;
-    const theme = localStorage.getItem("bc.theme") as "light" | "dark" | null;
-    if (lang) set({ language: lang });
-    if (theme) {
-      set({ theme });
-      document.documentElement.classList.toggle("dark", theme === "dark");
+    if (tokenStore.access()) {
+      api.post("/owner/admins", input).catch(() => {});
     }
+  },
+
+  async hydrate() {
+    if (typeof window === "undefined") return;
+    if (hydratingPromise) return hydratingPromise;
+
+    hydratingPromise = (async () => {
+      const lang = localStorage.getItem("bc.lang") as Language | null;
+      const theme = localStorage.getItem("bc.theme") as "light" | "dark" | null;
+      if (lang) set({ language: lang });
+      if (theme) {
+        set({ theme });
+        document.documentElement.classList.toggle("dark", theme === "dark");
+      }
+
+      // If access token exists, fetch profile and data to hydrate session
+      if (tokenStore.access()) {
+      try {
+        const { data } = await api.get("/me/profile");
+        if (data?.user) {
+          const normalized = normalizeUser(data.user);
+          if (data.displayStreak !== undefined) {
+            normalized.streak = data.displayStreak;
+          }
+          set({ sessionUser: normalized });
+          if (normalized.role === "admin" || normalized.role === "owner") {
+            set({ adminAuthed: true, adminUser: normalized });
+          }
+        }
+
+        // Fetch user shelf
+        try {
+          const shelfRes = await api.get("/me/shelf");
+          if (Array.isArray(shelfRes.data) && shelfRes.data.length > 0) {
+            const colors = ["#6366f1", "#10B981", "#F59E0B", "#0ea5e9", "#8b5cf6", "#ef4444"];
+            const mappedBooks: Book[] = shelfRes.data.map((ub: any, idx: number) => ({
+              id: String(ub.bookId?._id || ub.bookId || ub._id),
+              title: ub.bookId?.title || "Book",
+              author: ub.bookId?.author || "Author",
+              totalPages: ub.bookId?.totalPages || 100,
+              language: ub.bookId?.language || "mr",
+              status: ub.status || "want_to_read",
+              currentPage: ub.currentPage || 0,
+              coverColor: colors[idx % colors.length]!,
+              rating: ub.rating,
+              review: ub.review,
+            }));
+            set({ books: mappedBooks });
+          }
+        } catch {}
+
+        // If admin/owner, fetch admin collections
+        if (state.adminAuthed) {
+          try {
+            const [usersRes, deptsRes, settingsRes] = await Promise.allSettled([
+              api.get("/admin/users"),
+              api.get("/admin/departments"),
+              api.get("/admin/settings"),
+            ]);
+            if (usersRes.status === "fulfilled" && Array.isArray(usersRes.value.data)) {
+              set({ staff: usersRes.value.data.map(normalizeUser) });
+            }
+            if (deptsRes.status === "fulfilled" && Array.isArray(deptsRes.value.data)) {
+              set({
+                departments: deptsRes.value.data.map((d: any) => ({
+                  id: String(d._id || d.id),
+                  nameEn: d.name?.en || d.nameEn || "",
+                  nameMr: d.name?.mr || d.nameMr || "",
+                  staffCount: d.staffCount || 0,
+                })),
+              });
+            }
+            if (settingsRes.status === "fulfilled" && settingsRes.value.data) {
+              set({ settings: { ...demo.settings, ...settingsRes.value.data } });
+            }
+          } catch {}
+        }
+      } catch (err: any) {
+        console.warn("Hydrate error:", err?.message);
+          if (err?.response?.status === 401) {
+            tokenStore.clear();
+            set({ sessionUser: null, adminAuthed: false, adminUser: null });
+          }
+        }
+      } else {
+        // No token stored, ensure sessionUser is null
+        set({ sessionUser: null });
+      }
+    })().finally(() => {
+      hydratingPromise = null;
+    });
+
+    return hydratingPromise;
   },
 };

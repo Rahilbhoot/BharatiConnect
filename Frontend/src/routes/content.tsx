@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { actions, useAppState } from "@/lib/store";
+import { useSuggestions } from "@/lib/queries";
 import type { VideoCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +64,7 @@ function Content() {
   const { t, i18n } = useTranslation();
   const mr = i18n.language === "mr";
   const { notices, posts, videos, books, suggestions } = useAppState();
+  const { data: liveSuggestions = suggestions } = useSuggestions();
   const [cat, setCat] = useState<string>("all");
   const [lang, setLang] = useState<string>("all");
   const [player, setPlayer] = useState<string | null>(null);
@@ -307,7 +309,7 @@ function Content() {
           </Dialog>
 
           <div className="space-y-2">
-            {suggestions.map((s) => (
+            {liveSuggestions.map((s) => (
               <div key={s.id} className="glass flex items-center gap-3 rounded-2xl p-3">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{s.title}</p>

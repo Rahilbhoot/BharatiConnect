@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/AppError';
 import { ZodError } from 'zod';
+import { logger } from '../config/logger';
 
 export const errorHandler = (err: Error, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof AppError) {
@@ -32,7 +33,7 @@ export const errorHandler = (err: Error, req: Request, res: Response, next: Next
     });
   }
 
-  console.error('Unhandled Error:', err);
+  logger.error('Unhandled Error in request pipeline:', err);
   res.status(500).json({
     status: 'error',
     message: 'Internal Server Error'

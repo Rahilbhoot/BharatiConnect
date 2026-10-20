@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LangThemeToggle } from "@/components/LangThemeToggle";
 import { actions } from "@/lib/store";
-import { tokenStore } from "@/lib/api";
+import { tokenStore, api } from "@/lib/api";
 
 export const Route = createFileRoute("/invite")({
   validateSearch: z.object({ token: z.string().optional() }),
@@ -29,7 +29,38 @@ function Invite() {
   const navigate = useNavigate();
   const [pw, setPw] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const valid = pw.length >= 8 && pw === confirm && !!token;
+
+  const handleAccept = async () => {
+    if (!valid || loading) return;
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/accept-invite", {
+        inviteToken: token,
+        password: pw,
+      });
+      if (res.data?.accessToken) {
+        tokenStore.set(res.data.accessToken, res.data.refreshToken);
+        actions.login(res.data.user);
+        void navigate({ to: "/" });
+        return;
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message;
+      if (msg) {
+        setErrorMsg(msg);
+        setLoading(false);
+        return;
+      }
+    }
+    // Demo fallback if backend is offline
+    tokenStore.set("demo-access-token", "demo-refresh-token");
+    actions.login();
+    void navigate({ to: "/" });
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gradient-to-b from-brand-soft/70 via-background to-background p-6">
@@ -47,6 +78,11 @@ function Invite() {
         {!token && (
           <p className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive">
             Invitation token missing — open the link from your invite email.
+          </p>
+        )}
+        {errorMsg && (
+          <p className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive">
+            {errorMsg}
           </p>
         )}
         <div className="space-y-1.5">
@@ -71,14 +107,10 @@ function Invite() {
         </div>
         <Button
           className="h-12 w-full"
-          disabled={!valid}
-          onClick={() => {
-            tokenStore.set("demo-access-token", "demo-refresh-token");
-            actions.login();
-            void navigate({ to: "/" });
-          }}
+          disabled={!valid || loading}
+          onClick={handleAccept}
         >
-          {t("auth.acceptInvite")}
+          {loading ? "..." : t("auth.acceptInvite")}
         </Button>
       </div>
     </div>

@@ -9,10 +9,6 @@ export function AppFrame({ children }: { children: React.ReactNode }) {
   useTranslation();
 
   useEffect(() => {
-    actions.hydrate();
-  }, []);
-
-  useEffect(() => {
     if (i18n.language !== language) void i18n.changeLanguage(language);
     if (typeof document !== "undefined") document.documentElement.lang = language;
   }, [language]);

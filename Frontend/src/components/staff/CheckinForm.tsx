@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { actions, useAppState } from "@/lib/store";
+import { PhotoConsent } from "./PhotoConsent";
 
 export function CheckinForm() {
   const { t } = useTranslation();
@@ -23,6 +24,9 @@ export function CheckinForm() {
   const [page, setPage] = useState<string>(String((book?.currentPage ?? 0) + 15));
   const [note, setNote] = useState("");
   const [proof, setProof] = useState<string | null>(null);
+  const [showConsent, setShowConsent] = useState(false);
+  const [pendingFile, setPendingFile] = useState<string | null>(null);
+  const [consented, setConsented] = useState(false);
 
   const pagesRead = Math.max(0, Number(page || 0) - (book?.currentPage ?? 0));
   const proofRequired = settings.proofMode === "required";
@@ -110,7 +114,15 @@ export function CheckinForm() {
               accept="image/*"
               capture="environment"
               className="hidden"
-              onChange={(e) => setProof(e.target.files?.[0]?.name ?? null)}
+              onChange={(e) => {
+                const fileName = e.target.files?.[0]?.name ?? null;
+                if (fileName && !consented) {
+                  setPendingFile(fileName);
+                  setShowConsent(true);
+                } else {
+                  setProof(fileName);
+                }
+              }}
             />
           </label>
           <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
@@ -119,6 +131,15 @@ export function CheckinForm() {
           </p>
         </div>
       )}
+
+      <PhotoConsent
+        open={showConsent}
+        onOpenChange={setShowConsent}
+        onConsent={() => {
+          setConsented(true);
+          if (pendingFile) setProof(pendingFile);
+        }}
+      />
 
       <Button
         size="lg"

@@ -1,4 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { BookOpen, Home, Newspaper, Trophy, User as UserIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
@@ -7,6 +8,8 @@ import { LangThemeToggle } from "@/components/LangThemeToggle";
 import { NotificationBell } from "@/components/staff/NotificationBell";
 import { Celebration } from "@/components/Celebration";
 import { DemoBadge } from "@/components/DemoBadge";
+import { useAppState } from "@/lib/store";
+import { tokenStore } from "@/lib/api";
 
 const tabs = [
   { to: "/", icon: Home, key: "nav.home" },
@@ -18,7 +21,20 @@ const tabs = [
 
 export function StaffShell({ children }: { children: React.ReactNode }) {
   const { t } = useTranslation();
+  const { sessionUser } = useAppState();
+  const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const hasToken = typeof window !== "undefined" && Boolean(tokenStore.access());
+
+  useEffect(() => {
+    if (!sessionUser && !hasToken) {
+      void navigate({ to: "/login" });
+    }
+  }, [sessionUser, hasToken, navigate]);
+
+  if (!sessionUser && !hasToken) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-brand-soft/60 via-background to-background">

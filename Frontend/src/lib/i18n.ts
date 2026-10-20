@@ -53,6 +53,9 @@ export const en = {
     confirmPassword: "Confirm password",
     adminLogin: "Admin log in",
     logout: "Log out",
+    resetPassword: "Reset password",
+    newPassword: "New password",
+    resetSuccess: "Password reset successful! Redirecting to login...",
   },
   home: {
     greeting: "Namaskar, {{name}}",
@@ -149,6 +152,8 @@ export const en = {
     notificationList: "Notifications",
     role: "Role",
     departmentLabel: "Department",
+    staffDirectory: "Staff Directory",
+    members: "members",
   },
   admin: {
     dashboard: "Dashboard",
@@ -248,6 +253,9 @@ export const mr: typeof en = {
     confirmPassword: "पासवर्डची खात्री करा",
     adminLogin: "प्रशासक लॉग इन",
     logout: "लॉग आउट",
+    resetPassword: "पासवर्ड रीसेट करा",
+    newPassword: "नवीन पासवर्ड",
+    resetSuccess: "पासवर्ड यशस्वीरित्या रीसेट झाला! लॉगिनकडे पुनर्निर्देशित करत आहे...",
   },
   home: {
     greeting: "नमस्कार, {{name}}",
@@ -344,6 +352,8 @@ export const mr: typeof en = {
     notificationList: "सूचना",
     role: "भूमिका",
     departmentLabel: "विभाग",
+    staffDirectory: "कर्मचारी निर्देशिका",
+    members: "सदस्य",
   },
   admin: {
     dashboard: "डॅशबोर्ड",

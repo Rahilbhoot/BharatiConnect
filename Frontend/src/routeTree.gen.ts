@@ -17,6 +17,7 @@ import { Route as InviteRouteImport } from './routes/invite'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ReadingRouteImport } from './routes/reading'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAdminsRouteImport } from './routes/admin.admins'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin.analytics'
@@ -69,6 +70,11 @@ const ProfileRoute = ProfileRouteImport.update({
 const ReadingRoute = ReadingRouteImport.update({
   id: '/reading',
   path: '/reading',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -146,6 +152,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/reading': typeof ReadingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/admins': typeof AdminAdminsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -168,6 +175,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/reading': typeof ReadingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/admins': typeof AdminAdminsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -192,6 +200,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/profile': typeof ProfileRoute
   '/reading': typeof ReadingRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/admins': typeof AdminAdminsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/audit': typeof AdminAuditRoute
@@ -217,6 +226,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/reading'
+    | '/reset-password'
     | '/admin/admins'
     | '/admin/analytics'
     | '/admin/audit'
@@ -239,6 +249,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/reading'
+    | '/reset-password'
     | '/admin/admins'
     | '/admin/analytics'
     | '/admin/audit'
@@ -262,6 +273,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/profile'
     | '/reading'
+    | '/reset-password'
     | '/admin/admins'
     | '/admin/analytics'
     | '/admin/audit'
@@ -286,6 +298,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProfileRoute: typeof ProfileRoute
   ReadingRoute: typeof ReadingRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -344,6 +357,13 @@ declare module '@tanstack/react-router' {
       path: '/reading'
       fullPath: '/reading'
       preLoaderRoute: typeof ReadingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -483,6 +503,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProfileRoute: ProfileRoute,
   ReadingRoute: ReadingRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

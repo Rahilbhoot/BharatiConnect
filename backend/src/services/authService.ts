@@ -188,4 +188,58 @@ export class AuthService {
     }
     throw new ValidationError('Invalid 2FA code');
   }
+
+  static async forgotPassword(identifier: string) {
+    const user = await User.findOne({
+      $or: [{ email: identifier.toLowerCase() }, { phone: identifier }]
+    });
+    if (!user) {
+      return { message: 'If an account exists, a password reset link has been generated.' };
+    }
+
+    const resetToken = randomUUID();
+    user.resetPasswordToken = await bcrypt.hash(resetToken, 10);
+    user.resetPasswordExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await user.save();
+
+    return {
+      message: 'Password reset link generated',
+      resetToken,
+      userId: user._id
+    };
+  }
+
+  static async resetPassword(resetToken: string, newPassword: string) {
+    if (!resetToken || !newPassword || newPassword.length < 8) {
+      throw new ValidationError('Password must be at least 8 characters');
+    }
+
+    const candidateUsers = await User.find({
+      resetPasswordToken: { $exists: true },
+      resetPasswordExpires: { $gt: new Date() }
+    });
+
+    let targetUser = null;
+    for (const u of candidateUsers) {
+      if (u.resetPasswordToken && await bcrypt.compare(resetToken, u.resetPasswordToken)) {
+        targetUser = u;
+        break;
+      }
+    }
+
+    if (!targetUser) {
+      throw new UnauthorizedError('Invalid or expired reset token');
+    }
+
+    targetUser.passwordHash = await bcrypt.hash(newPassword, 12);
+    targetUser.resetPasswordToken = undefined;
+    targetUser.resetPasswordExpires = undefined;
+    targetUser.failedLoginAttempts = 0;
+    targetUser.lockoutUntil = undefined;
+    await targetUser.save();
+
+    await RefreshToken.deleteMany({ userId: targetUser._id });
+
+    return { message: 'Password reset successful. You may now log in with your new password.' };
+  }
 }

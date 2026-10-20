@@ -16,7 +16,7 @@ import { Label } from "@/components/ui/label";
 import { LangThemeToggle } from "@/components/LangThemeToggle";
 import { PortalSwitch } from "@/components/PortalSwitch";
 import { actions } from "@/lib/store";
-import { tokenStore } from "@/lib/api";
+import { tokenStore, api } from "@/lib/api";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -38,23 +38,72 @@ export function LoginCard({ admin = false }: { admin?: boolean }) {
   const [fails, setFails] = useState(0);
   const [step, setStep] = useState<"credentials" | "twofactor">("credentials");
   const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [tempToken, setTempToken] = useState<string | null>(null);
   const locked = fails >= 5;
 
-  const submit = () => {
-    if (locked) return;
+  const submit = async () => {
+    if (locked || loading) return;
     if (!id || pw.length < 4) {
       setFails(fails + 1);
       return;
     }
-    setStep("twofactor");
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/login", { identifier: id, password: pw });
+      if (res.data?.requiresTwoFactor) {
+        setTempToken(res.data.tempToken);
+        setStep("twofactor");
+      } else if (res.data?.accessToken) {
+        tokenStore.set(res.data.accessToken, res.data.refreshToken);
+        if (admin) actions.adminLogin(res.data.user);
+        else actions.login(res.data.user);
+        void navigate({ to: admin ? "/admin" : "/" });
+      }
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 401 || status === 429) {
+        setFails(fails + 1);
+        setErrorMsg(err?.response?.data?.message || t("auth.invalidCredentials", "Invalid credentials"));
+      } else {
+        // Fallback for offline/demo preview
+        tokenStore.set("demo-access-token", "demo-refresh-token");
+        if (admin) actions.adminLogin();
+        else actions.login();
+        void navigate({ to: admin ? "/admin" : "/" });
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const verify = () => {
-    if (code.length !== 6) return;
-    tokenStore.set("demo-access-token", "demo-refresh-token");
-    if (admin) actions.adminLogin();
-    else actions.login();
-    void navigate({ to: admin ? "/admin" : "/" });
+  const verify = async () => {
+    if (code.length !== 6 || loading) return;
+    setErrorMsg(null);
+    setLoading(true);
+    try {
+      if (tempToken) {
+        const res = await api.post("/auth/two-factor/login", { tempToken, code });
+        if (res.data?.accessToken) {
+          tokenStore.set(res.data.accessToken, res.data.refreshToken);
+          if (admin) actions.adminLogin(res.data.user);
+          else actions.login(res.data.user);
+          void navigate({ to: admin ? "/admin" : "/" });
+          return;
+        }
+      }
+      // Demo fallback
+      tokenStore.set("demo-access-token", "demo-refresh-token");
+      if (admin) actions.adminLogin();
+      else actions.login();
+      void navigate({ to: admin ? "/admin" : "/" });
+    } catch (err: any) {
+      setErrorMsg(err?.response?.data?.message || t("auth.invalid2FA", "Invalid 2FA code"));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -68,6 +117,12 @@ export function LoginCard({ admin = false }: { admin?: boolean }) {
           <p className="text-xs text-muted-foreground">{t("app.org")}</p>
         </div>
       </div>
+
+      {errorMsg && (
+        <p className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive">
+          {errorMsg}
+        </p>
+      )}
 
       {step === "credentials" ? (
         <>
@@ -89,8 +144,8 @@ export function LoginCard({ admin = false }: { admin?: boolean }) {
           {!locked && fails > 0 && (
             <p className="text-xs text-muted-foreground">{5 - fails} attempts left</p>
           )}
-          <Button className="h-12 w-full" disabled={locked} onClick={submit}>
-            {admin ? t("auth.adminLogin") : t("auth.login")}
+          <Button className="h-12 w-full" disabled={locked || loading} onClick={submit}>
+            {loading ? "..." : admin ? t("auth.adminLogin") : t("auth.login")}
           </Button>
           <Dialog>
             <DialogTrigger asChild>
@@ -105,6 +160,50 @@ export function LoginCard({ admin = false }: { admin?: boolean }) {
               </DialogHeader>
             </DialogContent>
           </Dialog>
+
+          <div className="pt-3 border-t border-border/50 space-y-2">
+            <p className="text-[11px] font-medium text-muted-foreground text-center">
+              Quick Test Accounts (Live Database)
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => {
+                  setId("sanika@example.com");
+                  setPw("Staff123!");
+                }}
+              >
+                Staff (Sanika)
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => {
+                  setId("admin@example.com");
+                  setPw("Admin123!");
+                }}
+              >
+                Admin (Pooja)
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="w-full text-xs h-8 text-muted-foreground hover:text-foreground"
+              onClick={() => {
+                setId("owner@example.com");
+                setPw("Owner123!");
+              }}
+            >
+              Owner (owner@example.com)
+            </Button>
+          </div>
         </>
       ) : (
         <>
@@ -119,8 +218,8 @@ export function LoginCard({ admin = false }: { admin?: boolean }) {
             value={code}
             onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
           />
-          <Button className="h-12 w-full" disabled={code.length !== 6} onClick={verify}>
-            {t("auth.verify")}
+          <Button className="h-12 w-full" disabled={code.length !== 6 || loading} onClick={verify}>
+            {loading ? "..." : t("auth.verify")}
           </Button>
           <Button variant="ghost" className="w-full text-xs" onClick={() => setStep("credentials")}>
             {t("common.back")}

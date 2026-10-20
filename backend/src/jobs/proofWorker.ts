@@ -2,16 +2,10 @@ import { ReadingLog } from '../models/ReadingLog';
 import { VisionService } from '../services/visionService';
 import { StreakService } from '../services/streakService';
 import { ProofOutcome } from '@shared/types';
-import { v2 as cloudinary } from 'cloudinary';
-import { env } from '../config/env';
+import { cloudinary } from '../config/cloudinary';
+import { logger } from '../config/logger';
 import axios from 'axios';
 import mongoose from 'mongoose';
-
-cloudinary.config({
-  cloud_name: env.CLOUDINARY_CLOUD_NAME,
-  api_key: env.CLOUDINARY_API_KEY,
-  api_secret: env.CLOUDINARY_API_SECRET
-});
 
 export class ProofWorker {
   static async processPendingProofs() {
@@ -28,7 +22,7 @@ export class ProofWorker {
         
         log.proof.verdict = verdict;
         
-        if (verdict.hasBook && verdict.textLegible && verdict.confidence > 0.7) {
+        if (verdict.isBookPage && verdict.textLegible && verdict.confidence >= 0.7 && !verdict.isScreenPhoto) {
           log.proof.status = ProofOutcome.Accepted;
           log.provisional = false;
           
@@ -38,7 +32,7 @@ export class ProofWorker {
         }
 
       } catch (err: any) {
-        console.error(`Failed to process proof for log ${log.id}:`, err.message);
+        logger.error(`Failed to process proof for log ${log.id}:`, err);
         log.proof.attempts = (log.proof.attempts || 0) + 1;
         if (log.proof.attempts > 3) {
            // Wait for manual review
