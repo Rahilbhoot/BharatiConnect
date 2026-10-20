@@ -81,9 +81,7 @@ function Invite() {
           </p>
         )}
         {errorMsg && (
-          <p className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive">
-            {errorMsg}
-          </p>
+          <p className="rounded-xl bg-destructive/10 p-2.5 text-xs text-destructive">{errorMsg}</p>
         )}
         <div className="space-y-1.5">
           <Label htmlFor="pw">{t("auth.password")}</Label>
@@ -105,11 +103,7 @@ function Invite() {
             onChange={(e) => setConfirm(e.target.value)}
           />
         </div>
-        <Button
-          className="h-12 w-full"
-          disabled={!valid || loading}
-          onClick={handleAccept}
-        >
+        <Button className="h-12 w-full" disabled={!valid || loading} onClick={handleAccept}>
           {loading ? "..." : t("auth.acceptInvite")}
         </Button>
       </div>

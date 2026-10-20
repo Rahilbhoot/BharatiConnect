@@ -1,6 +1,30 @@
 import { useSyncExternalStore } from "react";
 import * as demo from "./demo-data";
 import { api, tokenStore } from "./api";
+import { testConnection } from "./firebase";
+import {
+  seedFirestoreIfEmpty,
+  subscribeToFirestore,
+  fsSaveReadingLog,
+  fsSaveBook,
+  fsUpdateBook,
+  fsSaveNotice,
+  fsSavePost,
+  fsSaveVideo,
+  fsSaveChallenge,
+  fsUpdateChallenge,
+  fsSaveSuggestion,
+  fsUpdateSuggestion,
+  fsSaveHoliday,
+  fsDeleteHoliday,
+  fsUpdateSettings,
+  fsSaveUser,
+  fsUpdateUser,
+  fsSaveDepartment,
+  fsDeleteDepartment,
+  fsUpdateReadingLog,
+  fsSaveTakeaway,
+} from "./firebase-service";
 import type {
   AppNotification,
   AuditEntry,
@@ -20,6 +44,7 @@ import type {
   Suggestion,
   User,
   Video,
+  WeeklyTakeaway,
 } from "./types";
 
 export interface AppState {
@@ -45,6 +70,7 @@ export interface AppState {
   dayStates: Record<string, "logged" | "missed" | "frozen" | "holiday">;
   todayLogged: boolean;
   lastCelebration: { points: number; streak: number } | null;
+  takeaways: WeeklyTakeaway[];
 }
 
 export function normalizeUser(raw: any): User {
@@ -59,9 +85,8 @@ export function normalizeUser(raw: any): User {
     active: raw.active !== false,
     streak: raw.currentStreak ?? raw.streak ?? 0,
     points: raw.points ?? 0,
-    level: typeof raw.level === "number"
-      ? raw.level
-      : (raw.points ? Math.floor(raw.points / 100) + 1 : 1),
+    level:
+      typeof raw.level === "number" ? raw.level : raw.points ? Math.floor(raw.points / 100) + 1 : 1,
     language: raw.language === "en" ? "en" : "mr",
     reminderTime: raw.reminderTime || "20:00",
     joinedAt: raw.createdAt
@@ -74,9 +99,9 @@ export function normalizeUser(raw: any): User {
 const initial: AppState = {
   language: "mr",
   theme: "light",
-  sessionUser: null,
-  adminUser: null,
-  adminAuthed: false,
+  sessionUser: demo.currentUser,
+  adminUser: demo.adminUser,
+  adminAuthed: true,
   departments: demo.departments,
   staff: demo.staff,
   books: demo.books,
@@ -197,7 +222,9 @@ export const actions = {
       toPage: input.toPage,
       pages,
       ...(input.note ? { note: input.note } : {}),
-      ...(input.proof ? { proofUrl: input.proof, proofOutcome: "needs_review" as ProofOutcome } : {}),
+      ...(input.proof
+        ? { proofUrl: input.proof, proofOutcome: "needs_review" as ProofOutcome }
+        : {}),
     };
     const streak = user.streak + (state.todayLogged ? 0 : 1);
 
@@ -218,27 +245,30 @@ export const actions = {
       dayStates: { ...state.dayStates, [today]: "logged" },
       lastCelebration: { points, streak },
       challenges: state.challenges.map((c) =>
-        c.joined
-          ? { ...c, progress: c.progress + (c.type === "individual_pages" ? pages : 1) }
-          : c,
+        c.joined ? { ...c, progress: c.progress + (c.type === "individual_pages" ? pages : 1) } : c,
       ),
     });
 
+    fsSaveReadingLog(log).catch(() => {});
+
     // Call backend API if authenticated
     if (tokenStore.access()) {
-      api.post("/reading/check-in", {
-        bookId: input.bookId,
-        currentPage: input.toPage,
-        note: input.note,
-      }).then(({ data }) => {
-        if (data?.currentStreak) {
-          set((s) => ({
-            sessionUser: s.sessionUser ? { ...s.sessionUser, streak: data.currentStreak } : null,
-          }));
-        }
-      }).catch((err) => {
-        console.warn("CheckIn API call fell back to local store:", err?.message);
-      });
+      api
+        .post("/reading/check-in", {
+          bookId: input.bookId,
+          currentPage: input.toPage,
+          note: input.note,
+        })
+        .then(({ data }) => {
+          if (data?.currentStreak) {
+            set((s) => ({
+              sessionUser: s.sessionUser ? { ...s.sessionUser, streak: data.currentStreak } : null,
+            }));
+          }
+        })
+        .catch((err) => {
+          console.warn("CheckIn API call fell back to local store:", err?.message);
+        });
     }
   },
 
@@ -256,12 +286,15 @@ export const actions = {
       shortRead: book.totalPages < 150,
     };
     set({ books: [...state.books, newBook] });
+    fsSaveBook(newBook).catch(() => {});
 
     if (tokenStore.access()) {
-      api.post("/me/shelf", {
-        bookId: newBook.id,
-        status: book.status,
-      }).catch(() => {});
+      api
+        .post("/me/shelf", {
+          bookId: newBook.id,
+          status: book.status,
+        })
+        .catch(() => {});
     }
   },
 
@@ -273,6 +306,7 @@ export const actions = {
       return false;
     }
     set({ books: state.books.map((b) => (b.id === id ? { ...b, status } : b)) });
+    fsUpdateBook(id, { status }).catch(() => {});
 
     if (tokenStore.access()) {
       api.patch(`/me/shelf/${id}`, { status }).catch(() => {});
@@ -309,18 +343,17 @@ export const actions = {
   },
 
   addSuggestion(title: string, author: string) {
+    const newSug = {
+      id: uid(),
+      title,
+      author,
+      byName: state.sessionUser?.name ?? "Staff",
+      status: "pending" as const,
+    };
     set({
-      suggestions: [
-        {
-          id: uid(),
-          title,
-          author,
-          byName: state.sessionUser?.name ?? "Staff",
-          status: "pending",
-        },
-        ...state.suggestions,
-      ],
+      suggestions: [newSug, ...state.suggestions],
     });
+    fsSaveSuggestion(newSug).catch(() => {});
     if (tokenStore.access()) {
       api.post("/suggestions/books", { title, author }).catch(() => {});
     }
@@ -328,6 +361,7 @@ export const actions = {
 
   setSuggestionStatus(id: string, status: Suggestion["status"]) {
     set({ suggestions: state.suggestions.map((s) => (s.id === id ? { ...s, status } : s)) });
+    fsUpdateSuggestion(id, status).catch(() => {});
     logAudit(`suggestion.${status}`, id);
     if (tokenStore.access()) {
       api.patch(`/admin/suggestions/${id}`, { status }).catch(() => {});
@@ -359,6 +393,7 @@ export const actions = {
       avatarColor: "#6366f1",
     };
     set({ staff: [user, ...state.staff] });
+    fsSaveUser(user).catch(() => {});
     logAudit("staff.invite", user.name, undefined, "invited");
 
     if (tokenStore.access()) {
@@ -369,7 +404,9 @@ export const actions = {
 
   toggleStaffActive(id: string) {
     const target = state.staff.find((s) => s.id === id);
-    set({ staff: state.staff.map((s) => (s.id === id ? { ...s, active: !s.active } : s)) });
+    const newActive = !target?.active;
+    set({ staff: state.staff.map((s) => (s.id === id ? { ...s, active: newActive } : s)) });
+    fsUpdateUser(id, { active: newActive }).catch(() => {});
     if (target) {
       logAudit(
         target.active ? "staff.deactivate" : "staff.reactivate",
@@ -386,6 +423,7 @@ export const actions = {
   setStaffRole(id: string, role: Role) {
     const target = state.staff.find((s) => s.id === id);
     set({ staff: state.staff.map((s) => (s.id === id ? { ...s, role } : s)) });
+    fsUpdateUser(id, { role }).catch(() => {});
     if (target) {
       logAudit("staff.role", target.name, target.role, role);
       if (tokenStore.access()) {
@@ -396,26 +434,39 @@ export const actions = {
 
   saveDepartment(dept: { id?: string; nameEn: string; nameMr: string }) {
     if (dept.id) {
+      const updatedDept = {
+        id: dept.id,
+        nameEn: dept.nameEn,
+        nameMr: dept.nameMr,
+        staffCount: state.departments.find((d) => d.id === dept.id)?.staffCount || 0,
+      };
       set({
         departments: state.departments.map((d) =>
           d.id === dept.id ? { ...d, nameEn: dept.nameEn, nameMr: dept.nameMr } : d,
         ),
       });
+      fsSaveDepartment(updatedDept).catch(() => {});
       logAudit("department.update", dept.nameEn);
       if (tokenStore.access()) {
-        api.patch(`/admin/departments/${dept.id}`, {
-          name: { en: dept.nameEn, mr: dept.nameMr },
-        }).catch(() => {});
+        api
+          .patch(`/admin/departments/${dept.id}`, {
+            name: { en: dept.nameEn, mr: dept.nameMr },
+          })
+          .catch(() => {});
       }
     } else {
+      const newDept = { id: uid(), ...dept, staffCount: 0 };
       set({
-        departments: [...state.departments, { id: uid(), ...dept, staffCount: 0 }],
+        departments: [...state.departments, newDept],
       });
+      fsSaveDepartment(newDept).catch(() => {});
       logAudit("department.create", dept.nameEn);
       if (tokenStore.access()) {
-        api.post("/admin/departments", {
-          name: { en: dept.nameEn, mr: dept.nameMr },
-        }).catch(() => {});
+        api
+          .post("/admin/departments", {
+            name: { en: dept.nameEn, mr: dept.nameMr },
+          })
+          .catch(() => {});
       }
     }
   },
@@ -423,6 +474,7 @@ export const actions = {
   deleteDepartment(id: string) {
     const d = state.departments.find((x) => x.id === id);
     set({ departments: state.departments.filter((x) => x.id !== id) });
+    fsDeleteDepartment(id).catch(() => {});
     if (d) {
       logAudit("department.delete", d.nameEn);
       if (tokenStore.access()) {
@@ -436,6 +488,7 @@ export const actions = {
     set({
       logs: state.logs.map((l) => (l.id === logId ? { ...l, proofOutcome: outcome } : l)),
     });
+    fsUpdateReadingLog(logId, { proofOutcome: outcome }).catch(() => {});
     if (log) {
       logAudit(
         `proof.${outcome}`,
@@ -459,54 +512,56 @@ export const actions = {
   },
 
   addNotice(notice: Omit<Notice, "id" | "read" | "publishedAt">) {
-    set({
-      notices: [
-        { ...notice, id: uid(), read: false, publishedAt: demo.iso(new Date()) },
-        ...state.notices,
-      ],
-    });
+    const newNotice = { ...notice, id: uid(), read: false, publishedAt: demo.iso(new Date()) };
+    set({ notices: [newNotice, ...state.notices] });
+    fsSaveNotice(newNotice).catch(() => {});
     logAudit("notice.publish", notice.titleEn);
     if (tokenStore.access()) {
-      api.post("/admin/notices", {
-        title: { en: notice.titleEn, mr: notice.titleMr },
-        body: { en: notice.bodyEn, mr: notice.bodyMr },
-        priority: notice.priority,
-        pinned: notice.pinned,
-      }).catch(() => {});
+      api
+        .post("/admin/notices", {
+          title: { en: notice.titleEn, mr: notice.titleMr },
+          body: { en: notice.bodyEn, mr: notice.bodyMr },
+          priority: notice.priority,
+          pinned: notice.pinned,
+        })
+        .catch(() => {});
     }
   },
 
   addPost(post: Omit<Post, "id" | "publishedAt" | "authorName">) {
-    set({
-      posts: [
-        {
-          ...post,
-          id: uid(),
-          authorName: state.adminUser?.name ?? "Admin",
-          publishedAt: demo.iso(new Date()),
-        },
-        ...state.posts,
-      ],
-    });
+    const newPost = {
+      ...post,
+      id: uid(),
+      authorName: state.adminUser?.name ?? "Admin",
+      publishedAt: demo.iso(new Date()),
+    };
+    set({ posts: [newPost, ...state.posts] });
+    fsSavePost(newPost).catch(() => {});
     logAudit("post.publish", post.bodyEn.slice(0, 40));
     if (tokenStore.access()) {
-      api.post("/admin/posts", {
-        body: { en: post.bodyEn, mr: post.bodyMr },
-        images: post.images,
-      }).catch(() => {});
+      api
+        .post("/admin/posts", {
+          body: { en: post.bodyEn, mr: post.bodyMr },
+          images: post.images,
+        })
+        .catch(() => {});
     }
   },
 
   addVideo(video: Omit<Video, "id" | "watched">) {
-    set({ videos: [{ ...video, id: uid(), watched: false }, ...state.videos] });
+    const newVideo = { ...video, id: uid(), watched: false };
+    set({ videos: [newVideo, ...state.videos] });
+    fsSaveVideo(newVideo).catch(() => {});
     logAudit("video.create", video.titleEn);
     if (tokenStore.access()) {
-      api.post("/admin/videos", {
-        youtubeUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,
-        category: video.category,
-        language: video.language,
-        description: { en: video.titleEn, mr: video.titleMr },
-      }).catch(() => {});
+      api
+        .post("/admin/videos", {
+          youtubeUrl: `https://www.youtube.com/watch?v=${video.youtubeId}`,
+          category: video.category,
+          language: video.language,
+          description: { en: video.titleEn, mr: video.titleMr },
+        })
+        .catch(() => {});
     }
   },
 
@@ -519,37 +574,46 @@ export const actions = {
   },
 
   saveChallenge(challenge: Omit<Challenge, "id" | "progress" | "joined">) {
+    const newChallenge = { ...challenge, id: uid(), progress: 0, joined: false };
     set({
-      challenges: [...state.challenges, { ...challenge, id: uid(), progress: 0, joined: false }],
+      challenges: [...state.challenges, newChallenge],
     });
+    fsSaveChallenge(newChallenge).catch(() => {});
     logAudit("challenge.create", challenge.titleEn);
     if (tokenStore.access()) {
-      api.post("/admin/challenges", {
-        title: { en: challenge.titleEn, mr: challenge.titleMr },
-        description: { en: challenge.titleEn, mr: challenge.titleMr },
-        target: challenge.target,
-        type: challenge.type,
-        startDate: new Date().toISOString(),
-        endDate: new Date(challenge.endsOn).toISOString(),
-        rewardPoints: challenge.rewardPoints,
-      }).catch(() => {});
+      api
+        .post("/admin/challenges", {
+          title: { en: challenge.titleEn, mr: challenge.titleMr },
+          description: { en: challenge.titleEn, mr: challenge.titleMr },
+          target: challenge.target,
+          type: challenge.type,
+          startDate: new Date().toISOString(),
+          endDate: new Date(challenge.endsOn).toISOString(),
+          rewardPoints: challenge.rewardPoints,
+        })
+        .catch(() => {});
     }
   },
 
   addHoliday(entry: Omit<HolidayEntry, "id">) {
-    set({ holidays: [...state.holidays, { ...entry, id: uid() }] });
+    const newHoliday = { ...entry, id: uid() };
+    set({ holidays: [...state.holidays, newHoliday] });
+    fsSaveHoliday(newHoliday).catch(() => {});
     logAudit(`calendar.${entry.type}`, entry.labelEn);
     if (tokenStore.access()) {
-      api.post("/admin/holidays", {
-        date: entry.date,
-        name: { en: entry.labelEn, mr: entry.labelMr },
-        type: entry.type,
-      }).catch(() => {});
+      api
+        .post("/admin/holidays", {
+          date: entry.date,
+          name: { en: entry.labelEn, mr: entry.labelMr },
+          type: entry.type,
+        })
+        .catch(() => {});
     }
   },
 
   removeHoliday(id: string) {
     set({ holidays: state.holidays.filter((h) => h.id !== id) });
+    fsDeleteHoliday(id).catch(() => {});
     logAudit("calendar.delete", id);
     if (tokenStore.access()) {
       api.delete(`/admin/holidays/${id}`).catch(() => {});
@@ -559,6 +623,7 @@ export const actions = {
   updateSettings(patch: Partial<Settings>) {
     const before = state.settings;
     set({ settings: { ...before, ...patch } });
+    fsUpdateSettings(patch).catch(() => {});
     Object.entries(patch).forEach(([k, v]) =>
       logAudit("settings.update", k, String(before[k as keyof Settings]), String(v)),
     );
@@ -583,6 +648,7 @@ export const actions = {
       avatarColor: "#F59E0B",
     };
     set({ staff: [user, ...state.staff] });
+    fsSaveUser(user).catch(() => {});
     logAudit("admin.create", user.name, undefined, "admin");
     if (tokenStore.access()) {
       api.post("/owner/admins", input).catch(() => {});
@@ -602,70 +668,75 @@ export const actions = {
         document.documentElement.classList.toggle("dark", theme === "dark");
       }
 
+      // Initialize Firestore connection, seed data if empty, and subscribe to real-time updates
+      void testConnection();
+      void seedFirestoreIfEmpty();
+      subscribeToFirestore((partial) => set(partial));
+
       // If access token exists, fetch profile and data to hydrate session
       if (tokenStore.access()) {
-      try {
-        const { data } = await api.get("/me/profile");
-        if (data?.user) {
-          const normalized = normalizeUser(data.user);
-          if (data.displayStreak !== undefined) {
-            normalized.streak = data.displayStreak;
-          }
-          set({ sessionUser: normalized });
-          if (normalized.role === "admin" || normalized.role === "owner") {
-            set({ adminAuthed: true, adminUser: normalized });
-          }
-        }
-
-        // Fetch user shelf
         try {
-          const shelfRes = await api.get("/me/shelf");
-          if (Array.isArray(shelfRes.data) && shelfRes.data.length > 0) {
-            const colors = ["#6366f1", "#10B981", "#F59E0B", "#0ea5e9", "#8b5cf6", "#ef4444"];
-            const mappedBooks: Book[] = shelfRes.data.map((ub: any, idx: number) => ({
-              id: String(ub.bookId?._id || ub.bookId || ub._id),
-              title: ub.bookId?.title || "Book",
-              author: ub.bookId?.author || "Author",
-              totalPages: ub.bookId?.totalPages || 100,
-              language: ub.bookId?.language || "mr",
-              status: ub.status || "want_to_read",
-              currentPage: ub.currentPage || 0,
-              coverColor: colors[idx % colors.length]!,
-              rating: ub.rating,
-              review: ub.review,
-            }));
-            set({ books: mappedBooks });
+          const { data } = await api.get("/me/profile");
+          if (data?.user) {
+            const normalized = normalizeUser(data.user);
+            if (data.displayStreak !== undefined) {
+              normalized.streak = data.displayStreak;
+            }
+            set({ sessionUser: normalized });
+            if (normalized.role === "admin" || normalized.role === "owner") {
+              set({ adminAuthed: true, adminUser: normalized });
+            }
           }
-        } catch {}
 
-        // If admin/owner, fetch admin collections
-        if (state.adminAuthed) {
+          // Fetch user shelf
           try {
-            const [usersRes, deptsRes, settingsRes] = await Promise.allSettled([
-              api.get("/admin/users"),
-              api.get("/admin/departments"),
-              api.get("/admin/settings"),
-            ]);
-            if (usersRes.status === "fulfilled" && Array.isArray(usersRes.value.data)) {
-              set({ staff: usersRes.value.data.map(normalizeUser) });
-            }
-            if (deptsRes.status === "fulfilled" && Array.isArray(deptsRes.value.data)) {
-              set({
-                departments: deptsRes.value.data.map((d: any) => ({
-                  id: String(d._id || d.id),
-                  nameEn: d.name?.en || d.nameEn || "",
-                  nameMr: d.name?.mr || d.nameMr || "",
-                  staffCount: d.staffCount || 0,
-                })),
-              });
-            }
-            if (settingsRes.status === "fulfilled" && settingsRes.value.data) {
-              set({ settings: { ...demo.settings, ...settingsRes.value.data } });
+            const shelfRes = await api.get("/me/shelf");
+            if (Array.isArray(shelfRes.data) && shelfRes.data.length > 0) {
+              const colors = ["#6366f1", "#10B981", "#F59E0B", "#0ea5e9", "#8b5cf6", "#ef4444"];
+              const mappedBooks: Book[] = shelfRes.data.map((ub: any, idx: number) => ({
+                id: String(ub.bookId?._id || ub.bookId || ub._id),
+                title: ub.bookId?.title || "Book",
+                author: ub.bookId?.author || "Author",
+                totalPages: ub.bookId?.totalPages || 100,
+                language: ub.bookId?.language || "mr",
+                status: ub.status || "want_to_read",
+                currentPage: ub.currentPage || 0,
+                coverColor: colors[idx % colors.length]!,
+                rating: ub.rating,
+                review: ub.review,
+              }));
+              set({ books: mappedBooks });
             }
           } catch {}
-        }
-      } catch (err: any) {
-        console.warn("Hydrate error:", err?.message);
+
+          // If admin/owner, fetch admin collections
+          if (state.adminAuthed) {
+            try {
+              const [usersRes, deptsRes, settingsRes] = await Promise.allSettled([
+                api.get("/admin/users"),
+                api.get("/admin/departments"),
+                api.get("/admin/settings"),
+              ]);
+              if (usersRes.status === "fulfilled" && Array.isArray(usersRes.value.data)) {
+                set({ staff: usersRes.value.data.map(normalizeUser) });
+              }
+              if (deptsRes.status === "fulfilled" && Array.isArray(deptsRes.value.data)) {
+                set({
+                  departments: deptsRes.value.data.map((d: any) => ({
+                    id: String(d._id || d.id),
+                    nameEn: d.name?.en || d.nameEn || "",
+                    nameMr: d.name?.mr || d.nameMr || "",
+                    staffCount: d.staffCount || 0,
+                  })),
+                });
+              }
+              if (settingsRes.status === "fulfilled" && settingsRes.value.data) {
+                set({ settings: { ...demo.settings, ...settingsRes.value.data } });
+              }
+            } catch {}
+          }
+        } catch (err: any) {
+          console.warn("Hydrate error:", err?.message);
           if (err?.response?.status === 401) {
             tokenStore.clear();
             set({ sessionUser: null, adminAuthed: false, adminUser: null });

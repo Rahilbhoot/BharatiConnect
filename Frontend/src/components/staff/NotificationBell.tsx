@@ -20,7 +20,12 @@ export function NotificationBell() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative" aria-label={t("home.notifications")}>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative"
+          aria-label={t("home.notifications")}
+        >
           <Bell className="size-5" />
           {unread > 0 && (
             <span className="absolute top-1 right-1 flex size-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-destructive-foreground">
@@ -44,7 +49,9 @@ export function NotificationBell() {
                 !n.read && "border-primary/40 bg-primary/5",
               )}
             >
-              <p className="text-sm font-medium">{i18n.language === "mr" ? n.titleMr : n.titleEn}</p>
+              <p className="text-sm font-medium">
+                {i18n.language === "mr" ? n.titleMr : n.titleEn}
+              </p>
               <p className="mt-1 text-[11px] text-muted-foreground">
                 {n.at} · {n.type.replace(/_/g, " ")}
               </p>

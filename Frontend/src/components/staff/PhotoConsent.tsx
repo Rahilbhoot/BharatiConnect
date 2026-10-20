@@ -59,23 +59,17 @@ export function PhotoConsent({ open, onOpenChange, onConsent }: PhotoConsentProp
             </p>
             <p className="flex items-center justify-center gap-1.5 font-medium text-foreground">
               <Lock className="size-3.5 text-primary" />
-              {isMarathi ? "तुमचा डेटा सुरक्षित आणि खाजगी आहे." : "Your data is secure and confidential."}
+              {isMarathi
+                ? "तुमचा डेटा सुरक्षित आणि खाजगी आहे."
+                : "Your data is secure and confidential."}
             </p>
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="mt-4 flex-col gap-2 sm:flex-col">
-          <Button
-            className="h-12 w-full rounded-2xl"
-            disabled={loading}
-            onClick={handleConsent}
-          >
+          <Button className="h-12 w-full rounded-2xl" disabled={loading} onClick={handleConsent}>
             {loading ? "..." : isMarathi ? "मी संमत आहे" : "I Understand & Consent"}
           </Button>
-          <Button
-            variant="ghost"
-            className="w-full text-xs"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button variant="ghost" className="w-full text-xs" onClick={() => onOpenChange(false)}>
             {isMarathi ? "रद्द करा" : "Cancel"}
           </Button>
         </DialogFooter>

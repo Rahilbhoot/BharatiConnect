@@ -30,8 +30,7 @@ export function CheckinForm() {
 
   const pagesRead = Math.max(0, Number(page || 0) - (book?.currentPage ?? 0));
   const proofRequired = settings.proofMode === "required";
-  const canSubmit =
-    !!book && pagesRead >= settings.minimumPages && (!proofRequired || !!proof);
+  const canSubmit = !!book && pagesRead >= settings.minimumPages && (!proofRequired || !!proof);
 
   return (
     <div className="glass space-y-5 rounded-3xl p-5">
@@ -76,7 +75,9 @@ export function CheckinForm() {
           max={book?.totalPages ?? 9999}
           onChange={(e) => setPage(e.target.value)}
         />
-        <p className="text-xs text-muted-foreground">{t("reading.pagesRead", { count: pagesRead })}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("reading.pagesRead", { count: pagesRead })}
+        </p>
         {pagesRead < settings.minimumPages && (
           <p className="text-xs text-destructive">
             {t("admin.minimumPages")}: {settings.minimumPages}

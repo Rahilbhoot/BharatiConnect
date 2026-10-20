@@ -24,12 +24,22 @@ import { actions } from "@/lib/store";
 import type { BookStatus, Language } from "@/lib/types";
 
 const catalogue = [
-  { title: "व्यक्ती आणि वल्ली", author: "पु. ल. देशपांडे", totalPages: 232, language: "mr" as Language },
+  {
+    title: "व्यक्ती आणि वल्ली",
+    author: "पु. ल. देशपांडे",
+    totalPages: 232,
+    language: "mr" as Language,
+  },
   { title: "कोसला", author: "भालचंद्र नेमाडे", totalPages: 280, language: "mr" as Language },
   { title: "ययाति", author: "वि. स. खांडेकर", totalPages: 396, language: "mr" as Language },
   { title: "Deep Work", author: "Cal Newport", totalPages: 304, language: "en" as Language },
   { title: "Factfulness", author: "Hans Rosling", totalPages: 342, language: "en" as Language },
-  { title: "Man's Search for Meaning", author: "Viktor Frankl", totalPages: 184, language: "en" as Language },
+  {
+    title: "Man's Search for Meaning",
+    author: "Viktor Frankl",
+    totalPages: 184,
+    language: "en" as Language,
+  },
 ];
 
 export function AddBookDialog({ defaultStatus = "want_to_read" }: { defaultStatus?: BookStatus }) {

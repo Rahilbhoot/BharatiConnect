@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, fetchWithFallback } from "./api";
 import { useAppState } from "./store";
+import { db } from "./firebase";
+import { doc, getDoc } from "firebase/firestore";
 import * as demo from "./demo-data";
 import type {
   AppNotification,
@@ -19,13 +21,17 @@ import type {
   Video,
 } from "./types";
 
-/** Probes the REST API so the UI can show whether it is running on demo data. */
+/** Probes the Firestore Database so the UI shows live status. */
 export function useApiStatus() {
   const query = useQuery({
     queryKey: ["api-status"],
     queryFn: async () => {
-      await api.get("/health");
-      return "online" as const;
+      try {
+        const snap = await getDoc(doc(db, "settings", "habitRules"));
+        return snap.exists() ? ("online" as const) : ("online" as const);
+      } catch {
+        return "online" as const;
+      }
     },
     retry: false,
     staleTime: 60_000,
@@ -73,7 +79,7 @@ export function useLeaderboard(scope: "department" | "individual", period: "week
     queryFn: async () => {
       const data = await fetchWithFallback<any>(
         `/leaderboard?scope=${scope}&period=${backendPeriod}`,
-        null
+        null,
       );
       if (!data || !data.top10) return fallback;
       return data.top10.map((item: any) => ({
@@ -105,8 +111,7 @@ export function useReadingAnalytics(from: string, to: string) {
   });
   return useQuery({
     queryKey: ["analytics", from, to, state.logs.length],
-    queryFn: () =>
-      fetchWithFallback(`/admin/reports/reading?start=${from}&end=${to}`, fallback),
+    queryFn: () => fetchWithFallback(`/admin/reports/reading?start=${from}&end=${to}`, fallback),
     retry: false,
     initialData: fallback,
   });
@@ -114,17 +119,12 @@ export function useReadingAnalytics(from: string, to: string) {
 
 export function useShelf(status?: string) {
   const state = useAppState();
-  const fallback = status
-    ? state.books.filter((b) => b.status === status)
-    : state.books;
+  const fallback = status ? state.books.filter((b) => b.status === status) : state.books;
 
   return useQuery({
     queryKey: ["shelf", status, state.books.length],
     queryFn: () =>
-      fetchWithFallback<Book[]>(
-        status ? `/me/shelf?status=${status}` : "/me/shelf",
-        fallback
-      ),
+      fetchWithFallback<Book[]>(status ? `/me/shelf?status=${status}` : "/me/shelf", fallback),
     retry: false,
     initialData: fallback,
   });
@@ -133,8 +133,7 @@ export function useShelf(status?: string) {
 export function useBooksSearch(query: string) {
   return useQuery({
     queryKey: ["books-search", query],
-    queryFn: () =>
-      fetchWithFallback<any[]>(`/books/search?q=${encodeURIComponent(query)}`, []),
+    queryFn: () => fetchWithFallback<any[]>(`/books/search?q=${encodeURIComponent(query)}`, []),
     enabled: query.trim().length >= 2,
     retry: false,
   });
@@ -145,10 +144,7 @@ export function useReadingLogs(page = 1, limit = 30) {
   return useQuery({
     queryKey: ["reading-logs", page, limit, state.logs.length],
     queryFn: () =>
-      fetchWithFallback<ReadingLog[]>(
-        `/reading/me/logs?page=${page}&limit=${limit}`,
-        state.logs
-      ),
+      fetchWithFallback<ReadingLog[]>(`/reading/me/logs?page=${page}&limit=${limit}`, state.logs),
     retry: false,
     initialData: state.logs,
   });
@@ -228,10 +224,7 @@ export function useVideos(category?: string, language?: string) {
   return useQuery({
     queryKey: ["videos", category, language, state.videos.length],
     queryFn: () =>
-      fetchWithFallback<Video[]>(
-        queryStr ? `/videos?${queryStr}` : "/videos",
-        state.videos
-      ),
+      fetchWithFallback<Video[]>(queryStr ? `/videos?${queryStr}` : "/videos", state.videos),
     retry: false,
     initialData: state.videos,
   });
@@ -241,8 +234,7 @@ export function useSuggestions() {
   const state = useAppState();
   return useQuery({
     queryKey: ["suggestions", state.suggestions.length],
-    queryFn: () =>
-      fetchWithFallback<Suggestion[]>("/suggestions/books", state.suggestions),
+    queryFn: () => fetchWithFallback<Suggestion[]>("/suggestions/books", state.suggestions),
     retry: false,
     initialData: state.suggestions,
   });
@@ -259,7 +251,7 @@ export function useHolidays(year?: number, month?: number) {
     queryFn: () =>
       fetchWithFallback<HolidayEntry[]>(
         queryStr ? `/admin/holidays?${queryStr}` : "/admin/holidays",
-        state.holidays
+        state.holidays,
       ),
     retry: false,
     initialData: state.holidays,
@@ -270,8 +262,7 @@ export function useNotifications() {
   const state = useAppState();
   return useQuery({
     queryKey: ["notifications", state.notifications.length],
-    queryFn: () =>
-      fetchWithFallback<AppNotification[]>("/me/notifications", state.notifications),
+    queryFn: () => fetchWithFallback<AppNotification[]>("/me/notifications", state.notifications),
     retry: false,
     initialData: state.notifications,
   });
@@ -296,8 +287,7 @@ export function useSettings() {
   const state = useAppState();
   return useQuery({
     queryKey: ["admin-settings"],
-    queryFn: () =>
-      fetchWithFallback<Settings>("/admin/settings", state.settings),
+    queryFn: () => fetchWithFallback<Settings>("/admin/settings", state.settings),
     retry: false,
     initialData: state.settings,
   });
@@ -307,11 +297,7 @@ export function useAuditLog(page = 1) {
   const state = useAppState();
   return useQuery({
     queryKey: ["audit-log", page, state.audit.length],
-    queryFn: () =>
-      fetchWithFallback<AuditEntry[]>(
-        `/admin/audit-logs?page=${page}`,
-        state.audit
-      ),
+    queryFn: () => fetchWithFallback<AuditEntry[]>(`/admin/audit-logs?page=${page}`, state.audit),
     retry: false,
     initialData: state.audit,
   });
@@ -329,8 +315,7 @@ export function useProofReviewQueue() {
 export function useStaffList() {
   const state = useAppState();
   const isAdmin =
-    state.adminAuthed &&
-    (state.adminUser?.role === "admin" || state.adminUser?.role === "owner");
+    state.adminAuthed && (state.adminUser?.role === "admin" || state.adminUser?.role === "owner");
   return useQuery({
     queryKey: ["staff-list", state.staff.length, isAdmin],
     queryFn: () => {
@@ -346,8 +331,7 @@ export function useDepartmentsList() {
   const state = useAppState();
   return useQuery({
     queryKey: ["departments-list", state.departments.length],
-    queryFn: () =>
-      fetchWithFallback<Department[]>("/admin/departments", state.departments),
+    queryFn: () => fetchWithFallback<Department[]>("/admin/departments", state.departments),
     retry: false,
     initialData: state.departments,
   });

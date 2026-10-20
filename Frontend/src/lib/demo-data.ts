@@ -345,15 +345,52 @@ export const videos: Video[] = [
 ];
 
 export const suggestions: Suggestion[] = [
-  { id: "sg1", title: "व्यक्ती आणि वल्ली", author: "पु. ल. देशपांडे", byName: "Amol Jadhav", status: "pending" },
-  { id: "sg2", title: "Deep Work", author: "Cal Newport", byName: "Priya Kulkarni", status: "approved" },
-  { id: "sg3", title: "कोसला", author: "भालचंद्र नेमाडे", byName: "Vikas Shinde", status: "pending" },
+  {
+    id: "sg1",
+    title: "व्यक्ती आणि वल्ली",
+    author: "पु. ल. देशपांडे",
+    byName: "Amol Jadhav",
+    status: "pending",
+  },
+  {
+    id: "sg2",
+    title: "Deep Work",
+    author: "Cal Newport",
+    byName: "Priya Kulkarni",
+    status: "approved",
+  },
+  {
+    id: "sg3",
+    title: "कोसला",
+    author: "भालचंद्र नेमाडे",
+    byName: "Vikas Shinde",
+    status: "pending",
+  },
 ];
 
 export const holidays: HolidayEntry[] = [
-  { id: "h1", date: iso(daysAgo(6)), type: "holiday", labelEn: "Ganesh Chaturthi", labelMr: "गणेश चतुर्थी" },
-  { id: "h2", date: iso(daysAgo(-4)), type: "holiday", labelEn: "Founders Day", labelMr: "स्थापना दिन" },
-  { id: "h3", date: iso(daysAgo(2)), type: "leave", labelEn: "Casual leave", labelMr: "किरकोळ रजा", userId: "u1" },
+  {
+    id: "h1",
+    date: iso(daysAgo(6)),
+    type: "holiday",
+    labelEn: "Ganesh Chaturthi",
+    labelMr: "गणेश चतुर्थी",
+  },
+  {
+    id: "h2",
+    date: iso(daysAgo(-4)),
+    type: "holiday",
+    labelEn: "Founders Day",
+    labelMr: "स्थापना दिन",
+  },
+  {
+    id: "h3",
+    date: iso(daysAgo(2)),
+    type: "leave",
+    labelEn: "Casual leave",
+    labelMr: "किरकोळ रजा",
+    userId: "u1",
+  },
 ];
 
 export const notifications: AppNotification[] = [

@@ -24,15 +24,14 @@ export function StaffShell({ children }: { children: React.ReactNode }) {
   const { sessionUser } = useAppState();
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const hasToken = typeof window !== "undefined" && Boolean(tokenStore.access());
 
   useEffect(() => {
-    if (!sessionUser && !hasToken) {
+    if (!sessionUser) {
       void navigate({ to: "/login" });
     }
-  }, [sessionUser, hasToken, navigate]);
+  }, [sessionUser, navigate]);
 
-  if (!sessionUser && !hasToken) {
+  if (!sessionUser) {
     return null;
   }
 

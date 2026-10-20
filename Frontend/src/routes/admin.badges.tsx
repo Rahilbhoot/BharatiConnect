@@ -15,7 +15,10 @@ export const Route = createFileRoute("/admin/badges")({
   head: () => ({
     meta: [
       { title: "Badges — BharatiConnect Admin" },
-      { name: "description", content: "Badge definitions and how many staff have earned each one." },
+      {
+        name: "description",
+        content: "Badge definitions and how many staff have earned each one.",
+      },
       { property: "og:title", content: "Badges — BharatiConnect Admin" },
       { property: "og:description", content: "Badge overview for the reading habit programme." },
     ],

@@ -16,7 +16,10 @@ export const Route = createFileRoute("/admin/proof")({
       { title: "Proof Review — BharatiConnect Admin" },
       { name: "description", content: "Review reading photo proofs and adjust missed days." },
       { property: "og:title", content: "Proof Review — BharatiConnect Admin" },
-      { property: "og:description", content: "Accept or ask for a retake on submitted reading proofs." },
+      {
+        property: "og:description",
+        content: "Accept or ask for a retake on submitted reading proofs.",
+      },
     ],
   }),
   component: ProofReview,

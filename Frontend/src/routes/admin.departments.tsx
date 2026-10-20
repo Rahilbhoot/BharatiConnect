@@ -20,7 +20,10 @@ export const Route = createFileRoute("/admin/departments")({
   head: () => ({
     meta: [
       { title: "Departments — BharatiConnect Admin" },
-      { name: "description", content: "Create and edit departments with English and Marathi names." },
+      {
+        name: "description",
+        content: "Create and edit departments with English and Marathi names.",
+      },
       { property: "og:title", content: "Departments — BharatiConnect Admin" },
       { property: "og:description", content: "Dual-language department management." },
     ],
@@ -40,9 +43,7 @@ function Departments() {
     <AdminShell title={t("admin.departments")}>
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="glass space-y-3 rounded-3xl p-5">
-          <p className="text-sm font-semibold">
-            {form.id ? t("common.edit") : t("common.add")}
-          </p>
+          <p className="text-sm font-semibold">{form.id ? t("common.edit") : t("common.add")}</p>
           <div className="space-y-1.5">
             <Label>{t("admin.nameEn")}</Label>
             <Input

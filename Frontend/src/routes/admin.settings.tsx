@@ -18,9 +18,15 @@ export const Route = createFileRoute("/admin/settings")({
   head: () => ({
     meta: [
       { title: "System Settings — BharatiConnect Admin" },
-      { name: "description", content: "Minimum pages, proof mode, freezes, reminders and default language." },
+      {
+        name: "description",
+        content: "Minimum pages, proof mode, freezes, reminders and default language.",
+      },
       { property: "og:title", content: "System Settings — BharatiConnect Admin" },
-      { property: "og:description", content: "Tune the reading habit rules for your organization." },
+      {
+        property: "og:description",
+        content: "Tune the reading habit rules for your organization.",
+      },
     ],
   }),
   component: AdminSettings,

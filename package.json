@@ -3,15 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "workspaces": [
-    "backend",
-    "packages/*"
+    "Frontend"
   ],
-  "packageManager": "npm@10.8.1",
   "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev",
-    "lint": "turbo run lint",
-    "test": "turbo run test"
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend",
+    "preview": "npm run preview --workspace=frontend"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
@@ -25,6 +23,7 @@
     "cloudinary": "^2.11.0",
     "date-fns": "^4.4.0",
     "date-fns-tz": "^3.2.0",
+    "firebase": "^13.0.0",
     "ms": "^2.1.3"
   }
 }

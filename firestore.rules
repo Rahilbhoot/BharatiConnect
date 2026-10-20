@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == "rahilpatel112399@gmail.com" && request.auth.token.email_verified == true)
+      );
+    }
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Admins metadata collection
+    match /admins/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow update: if isSignedIn() && isValidId(userId) && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // Departments
+    match /departments/{departmentId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Book catalog
+    match /books/{bookId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isValidId(bookId);
+    }
+
+    // Reading Logs
+    match /reading_logs/{logId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(logId) && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && isValidId(logId) && (existing().userId == request.auth.uid || isAdmin());
+      allow delete: if isSignedIn() && isValidId(logId) && (existing().userId == request.auth.uid || isAdmin());
+    }
+
+    // Challenges
+    match /challenges/{challengeId} {
+      allow read: if isSignedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isSignedIn() && isValidId(challengeId);
+    }
+
+    // Notices
+    match /notices/{noticeId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Community Posts
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(postId);
+      allow update, delete: if isAdmin();
+    }
+
+    // Videos
+    match /videos/{videoId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Suggestions
+    match /suggestions/{suggestionId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(suggestionId);
+      allow update, delete: if isAdmin();
+    }
+
+    // Holidays
+    match /holidays/{holidayId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Settings
+    match /settings/{settingId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // Takeaways
+    match /takeaways/{takeawayId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(takeawayId);
+      allow update, delete: if isAdmin();
+    }
+  }
+}

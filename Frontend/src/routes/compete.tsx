@@ -94,9 +94,7 @@ function Compete() {
                 <span
                   className={cn(
                     "flex size-8 items-center justify-center rounded-full text-xs font-bold",
-                    i === 0
-                      ? "bg-streak text-streak-foreground"
-                      : "bg-muted text-muted-foreground",
+                    i === 0 ? "bg-streak text-streak-foreground" : "bg-muted text-muted-foreground",
                   )}
                 >
                   {i + 1}
@@ -173,7 +171,9 @@ function Compete() {
                 )}
               >
                 <span className="text-3xl">{badgeIcon[b.key]}</span>
-                <span className="text-[11px] font-medium leading-tight">{t(`badges.${b.key}`)}</span>
+                <span className="text-[11px] font-medium leading-tight">
+                  {t(`badges.${b.key}`)}
+                </span>
                 {b.earned ? (
                   <Award className="size-3.5 text-success" />
                 ) : (

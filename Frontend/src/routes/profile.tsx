@@ -42,12 +42,12 @@ function Profile() {
         <div className="glass flex items-center gap-4 rounded-3xl p-5">
           <span
             className="flex size-16 items-center justify-center rounded-2xl text-xl font-bold text-white"
-            style={{ backgroundColor: sessionUser?.avatarColor }}
+            style={{ backgroundColor: sessionUser?.avatarColor ?? "#6366f1" }}
           >
-            {sessionUser?.name.slice(0, 1)}
+            {sessionUser?.name ? sessionUser.name.slice(0, 1) : "S"}
           </span>
           <div className="min-w-0">
-            <p className="truncate text-lg font-semibold">{sessionUser?.name}</p>
+            <p className="truncate text-lg font-semibold">{sessionUser?.name ?? "Staff Member"}</p>
             <p className="truncate text-xs text-muted-foreground">
               {t("profile.role")}: {sessionUser?.role} ·{" "}
               {i18n.language === "mr" ? dept?.nameMr : dept?.nameEn}

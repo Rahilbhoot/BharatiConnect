@@ -71,10 +71,7 @@ function Holidays() {
           {form.type === "leave" && (
             <div className="space-y-1.5">
               <Label>Staff</Label>
-              <Select
-                value={form.userId}
-                onValueChange={(v) => setForm({ ...form, userId: v })}
-              >
+              <Select value={form.userId} onValueChange={(v) => setForm({ ...form, userId: v })}>
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="—" />
                 </SelectTrigger>

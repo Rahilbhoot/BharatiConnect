@@ -23,9 +23,15 @@ export const Route = createFileRoute("/admin/content")({
   head: () => ({
     meta: [
       { title: "Content Management — BharatiConnect Admin" },
-      { name: "description", content: "Publish notices, updates, videos and approve book suggestions." },
+      {
+        name: "description",
+        content: "Publish notices, updates, videos and approve book suggestions.",
+      },
       { property: "og:title", content: "Content Management — BharatiConnect Admin" },
-      { property: "og:description", content: "Dual-language content publishing for Akshar Bharati." },
+      {
+        property: "og:description",
+        content: "Dual-language content publishing for Akshar Bharati.",
+      },
     ],
   }),
   component: AdminContent,

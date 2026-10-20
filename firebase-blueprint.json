@@ -1,0 +1,246 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with reading streaks, points, and role.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 120 },
+        "phone": { "type": "string", "maxLength": 20 },
+        "role": { "type": "string", "enum": ["owner", "admin", "staff"] },
+        "departmentId": { "type": "string", "maxLength": 128 },
+        "active": { "type": "boolean" },
+        "streak": { "type": "number" },
+        "points": { "type": "number" },
+        "level": { "type": "number" },
+        "language": { "type": "string", "enum": ["en", "mr"] },
+        "reminderTime": { "type": "string", "maxLength": 10 },
+        "joinedAt": { "type": "string", "maxLength": 30 },
+        "avatarColor": { "type": "string", "maxLength": 20 }
+      },
+      "required": ["id", "name", "email", "role"]
+    },
+    "Department": {
+      "title": "Department",
+      "description": "Organization department.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "nameEn": { "type": "string", "maxLength": 100 },
+        "nameMr": { "type": "string", "maxLength": 100 },
+        "staffCount": { "type": "number" }
+      },
+      "required": ["id", "nameEn", "nameMr"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "Catalog book.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "author": { "type": "string", "maxLength": 100 },
+        "totalPages": { "type": "number" },
+        "language": { "type": "string", "enum": ["en", "mr"] },
+        "status": { "type": "string", "enum": ["want_to_read", "reading", "finished"] },
+        "currentPage": { "type": "number" },
+        "coverColor": { "type": "string", "maxLength": 20 },
+        "shortRead": { "type": "boolean" },
+        "staffPick": { "type": "boolean" }
+      },
+      "required": ["id", "title", "author", "totalPages", "language"]
+    },
+    "ReadingLog": {
+      "title": "ReadingLog",
+      "description": "Daily reading log submission.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "bookId": { "type": "string", "maxLength": 128 },
+        "bookTitle": { "type": "string", "maxLength": 200 },
+        "date": { "type": "string", "maxLength": 20 },
+        "fromPage": { "type": "number" },
+        "toPage": { "type": "number" },
+        "pages": { "type": "number" },
+        "note": { "type": "string", "maxLength": 500 },
+        "proofUrl": { "type": "string", "maxLength": 500 },
+        "proofOutcome": { "type": "string", "enum": ["accepted", "retake", "needs_review"] }
+      },
+      "required": ["id", "userId", "bookId", "date", "fromPage", "toPage", "pages"]
+    },
+    "Challenge": {
+      "title": "Challenge",
+      "description": "Reading challenges for staff.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "titleEn": { "type": "string", "maxLength": 150 },
+        "titleMr": { "type": "string", "maxLength": 150 },
+        "type": { "type": "string", "enum": ["individual_pages", "individual_days", "collective_days"] },
+        "target": { "type": "number" },
+        "progress": { "type": "number" },
+        "rewardPoints": { "type": "number" },
+        "endsOn": { "type": "string", "maxLength": 30 },
+        "joined": { "type": "boolean" }
+      },
+      "required": ["id", "titleEn", "titleMr", "type", "target", "rewardPoints", "endsOn"]
+    },
+    "Notice": {
+      "title": "Notice",
+      "description": "Official broadcast notice.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "titleEn": { "type": "string", "maxLength": 150 },
+        "titleMr": { "type": "string", "maxLength": 150 },
+        "bodyEn": { "type": "string", "maxLength": 2000 },
+        "bodyMr": { "type": "string", "maxLength": 2000 },
+        "priority": { "type": "string", "enum": ["normal", "urgent"] },
+        "pinned": { "type": "boolean" },
+        "publishedAt": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["id", "titleEn", "titleMr", "bodyEn", "bodyMr", "priority", "publishedAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Social updates and reading memories.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "authorName": { "type": "string", "maxLength": 100 },
+        "bodyEn": { "type": "string", "maxLength": 2000 },
+        "bodyMr": { "type": "string", "maxLength": 2000 },
+        "publishedAt": { "type": "string", "maxLength": 30 }
+      },
+      "required": ["id", "authorName", "publishedAt"]
+    },
+    "Video": {
+      "title": "Video",
+      "description": "Learning video resource.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "titleEn": { "type": "string", "maxLength": 150 },
+        "titleMr": { "type": "string", "maxLength": 150 },
+        "youtubeId": { "type": "string", "maxLength": 50 },
+        "category": { "type": "string", "enum": ["writing", "spreadsheets", "translation", "donor_reports", "social_media"] },
+        "language": { "type": "string", "enum": ["en", "mr"] },
+        "pinnedTip": { "type": "boolean" }
+      },
+      "required": ["id", "titleEn", "titleMr", "youtubeId", "category", "language"]
+    },
+    "Suggestion": {
+      "title": "Suggestion",
+      "description": "Book suggestion submitted by staff.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "author": { "type": "string", "maxLength": 100 },
+        "byName": { "type": "string", "maxLength": 100 },
+        "status": { "type": "string", "enum": ["pending", "approved", "rejected"] },
+        "reason": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "title", "author", "byName", "status"]
+    },
+    "Holiday": {
+      "title": "Holiday",
+      "description": "Organization holidays and planned leave.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "date": { "type": "string", "maxLength": 20 },
+        "type": { "type": "string", "enum": ["holiday", "leave"] },
+        "labelEn": { "type": "string", "maxLength": 100 },
+        "labelMr": { "type": "string", "maxLength": 100 },
+        "userId": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["id", "date", "type", "labelEn", "labelMr"]
+    },
+    "Takeaway": {
+      "title": "Takeaway",
+      "description": "Weekly book takeaway reflection with points reward.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 100 },
+        "bookId": { "type": "string", "maxLength": 128 },
+        "bookTitle": { "type": "string", "maxLength": 200 },
+        "takeaway": { "type": "string", "maxLength": 200 },
+        "submittedAt": { "type": "string", "maxLength": 30 },
+        "pointsAwarded": { "type": "number" }
+      },
+      "required": ["id", "userId", "bookId", "takeaway", "submittedAt"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Organization reading habit configuration.",
+      "type": "object",
+      "properties": {
+        "minimumPages": { "type": "number" },
+        "proofMode": { "type": "string", "enum": ["off", "optional", "required"] },
+        "freezesPerWeek": { "type": "number" },
+        "reminderTime": { "type": "string", "maxLength": 10 },
+        "nudgeTime": { "type": "string", "maxLength": 10 },
+        "spotCheckRate": { "type": "number" },
+        "defaultLanguage": { "type": "string", "enum": ["en", "mr"] }
+      },
+      "required": ["minimumPages", "proofMode", "freezesPerWeek", "reminderTime"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles"
+    },
+    "/departments/{departmentId}": {
+      "schema": { "$ref": "#/entities/Department" },
+      "description": "Organization departments"
+    },
+    "/books/{bookId}": {
+      "schema": { "$ref": "#/entities/Book" },
+      "description": "Book catalog"
+    },
+    "/reading_logs/{logId}": {
+      "schema": { "$ref": "#/entities/ReadingLog" },
+      "description": "Daily reading habit logs"
+    },
+    "/challenges/{challengeId}": {
+      "schema": { "$ref": "#/entities/Challenge" },
+      "description": "Organization reading challenges"
+    },
+    "/notices/{noticeId}": {
+      "schema": { "$ref": "#/entities/Notice" },
+      "description": "Official broadcast notices"
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/entities/Post" },
+      "description": "Staff reading community posts"
+    },
+    "/videos/{videoId}": {
+      "schema": { "$ref": "#/entities/Video" },
+      "description": "Micro-learning videos and AI tips"
+    },
+    "/suggestions/{suggestionId}": {
+      "schema": { "$ref": "#/entities/Suggestion" },
+      "description": "Book suggestions"
+    },
+    "/holidays/{holidayId}": {
+      "schema": { "$ref": "#/entities/Holiday" },
+      "description": "Holidays and leaves"
+    },
+    "/takeaways/{takeawayId}": {
+      "schema": { "$ref": "#/entities/Takeaway" },
+      "description": "Weekly book takeaways"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/Settings" },
+      "description": "System settings"
+    }
+  }
+}

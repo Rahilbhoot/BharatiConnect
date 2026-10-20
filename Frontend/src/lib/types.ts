@@ -15,11 +15,7 @@ export type NotificationType =
   | "challenge_ending"
   | "badge_earned";
 export type VideoCategory =
-  | "writing"
-  | "spreadsheets"
-  | "translation"
-  | "donor_reports"
-  | "social_media";
+  "writing" | "spreadsheets" | "translation" | "donor_reports" | "social_media";
 export type Language = "en" | "mr";
 
 export type DayState = "logged" | "missed" | "frozen" | "holiday";
@@ -97,6 +93,17 @@ export interface BadgeDef {
   earnedOn?: string | undefined;
 }
 
+export interface WeeklyTakeaway {
+  id: string;
+  userId: string;
+  userName: string;
+  bookId: string;
+  bookTitle: string;
+  takeaway: string;
+  submittedAt: string;
+  pointsAwarded: number;
+}
+
 export interface Notice {
   id: string;
   titleEn: string;
@@ -107,6 +114,7 @@ export interface Notice {
   pinned: boolean;
   read: boolean;
   publishedAt: string;
+  readBy?: string[] | undefined;
 }
 
 export interface Post {

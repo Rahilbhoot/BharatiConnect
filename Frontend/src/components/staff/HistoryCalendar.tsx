@@ -42,7 +42,9 @@ export function HistoryCalendar() {
     queryFn: async () => {
       if (!tokenStore.access()) return null;
       try {
-        const { data } = await api.get(`/reading/me/history?month=${month + 1}&year=${year}&limit=100`);
+        const { data } = await api.get(
+          `/reading/me/history?month=${month + 1}&year=${year}&limit=100`,
+        );
         return data?.logs || [];
       } catch {
         return null;
@@ -58,16 +60,17 @@ export function HistoryCalendar() {
   });
 
   const selectedApiLogs = (historyData || []).filter((l: any) => l.date === selected);
-  const dayLogs = selectedApiLogs.length > 0
-    ? selectedApiLogs.map((l: any) => ({
-        id: String(l._id || l.id),
-        bookTitle: l.bookId?.title || "Book",
-        fromPage: l.startPage,
-        toPage: l.currentPage,
-        pages: l.pagesRead,
-        note: l.note,
-      }))
-    : logs.filter((l) => l.date === selected && l.userId === sessionUser?.id);
+  const dayLogs =
+    selectedApiLogs.length > 0
+      ? selectedApiLogs.map((l: any) => ({
+          id: String(l._id || l.id),
+          bookTitle: l.bookId?.title || "Book",
+          fromPage: l.startPage,
+          toPage: l.currentPage,
+          pages: l.pagesRead,
+          note: l.note,
+        }))
+      : logs.filter((l) => l.date === selected && l.userId === sessionUser?.id);
 
   const dayHoliday = holidays.find((h) => h.date === selected);
 
@@ -83,7 +86,12 @@ export function HistoryCalendar() {
             year: "numeric",
           })}
         </p>
-        <Button variant="ghost" size="icon" disabled={offset >= 0} onClick={() => setOffset(offset + 1)}>
+        <Button
+          variant="ghost"
+          size="icon"
+          disabled={offset >= 0}
+          onClick={() => setOffset(offset + 1)}
+        >
           <ChevronRight className="size-4" />
         </Button>
       </div>

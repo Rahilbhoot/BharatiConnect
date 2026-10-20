@@ -75,8 +75,7 @@ function Audit() {
                 <TableCell className="text-xs">
                   {a.before || a.after ? (
                     <span>
-                      <span className="text-destructive line-through">{a.before ?? "—"}</span>{" "}
-                      →{" "}
+                      <span className="text-destructive line-through">{a.before ?? "—"}</span> →{" "}
                       <span className="text-success-foreground dark:text-success">
                         {a.after ?? "—"}
                       </span>

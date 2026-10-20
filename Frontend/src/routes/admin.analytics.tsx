@@ -24,7 +24,10 @@ export const Route = createFileRoute("/admin/analytics")({
       { title: "Reading Analytics — BharatiConnect Admin" },
       { name: "description", content: "Per-staff reading days and pages with CSV export." },
       { property: "og:title", content: "Reading Analytics — BharatiConnect Admin" },
-      { property: "og:description", content: "Filter reading activity by date range and export it." },
+      {
+        property: "og:description",
+        content: "Filter reading activity by date range and export it.",
+      },
     ],
   }),
   component: Analytics,

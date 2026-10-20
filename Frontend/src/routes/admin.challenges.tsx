@@ -21,7 +21,10 @@ export const Route = createFileRoute("/admin/challenges")({
   head: () => ({
     meta: [
       { title: "Challenges — BharatiConnect Admin" },
-      { name: "description", content: "Create and monitor individual and collective reading challenges." },
+      {
+        name: "description",
+        content: "Create and monitor individual and collective reading challenges.",
+      },
       { property: "og:title", content: "Challenges — BharatiConnect Admin" },
       { property: "og:description", content: "Reading challenge management for Akshar Bharati." },
     ],
@@ -131,8 +134,8 @@ function AdminChallenges() {
             <div key={c.id} className="glass rounded-3xl p-5">
               <p className="font-medium">{i18n.language === "mr" ? c.titleMr : c.titleEn}</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {c.type} · {t("compete.target")} {c.target} · +{c.rewardPoints}{" "}
-                {t("common.points")} · {c.endsOn}
+                {c.type} · {t("compete.target")} {c.target} · +{c.rewardPoints} {t("common.points")}{" "}
+                · {c.endsOn}
               </p>
               <Progress value={(c.progress / c.target) * 100} className="mt-3" />
               <p className="mt-2 text-xs tabular-nums text-muted-foreground">

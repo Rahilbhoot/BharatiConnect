@@ -37,7 +37,9 @@ function Admins() {
   if (!isOwner) {
     return (
       <AdminShell title={t("admin.owners")}>
-        <p className="glass rounded-3xl p-6 text-sm text-muted-foreground">{t("admin.ownerOnly")}</p>
+        <p className="glass rounded-3xl p-6 text-sm text-muted-foreground">
+          {t("admin.ownerOnly")}
+        </p>
       </AdminShell>
     );
   }
@@ -105,7 +107,11 @@ function Admins() {
                 </p>
               </div>
               {a.role === "admin" && (
-                <Button size="sm" variant="outline" onClick={() => actions.setStaffRole(a.id, "staff")}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => actions.setStaffRole(a.id, "staff")}
+                >
                   {t("admin.demote")}
                 </Button>
               )}

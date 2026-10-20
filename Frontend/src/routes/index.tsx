@@ -32,13 +32,14 @@ function Home() {
   const user = sessionUser;
   const challenge = challenges.find((c) => c.joined) ?? challenges[0]!;
   const readingNow = books.filter((b) => b.status === "reading");
+  const firstName = (user?.name ?? "Staff").split(" ")[0] ?? "Staff";
 
   return (
     <StaffShell>
       <div className="space-y-5">
         <div>
           <h1 className="font-serif text-2xl font-semibold">
-            {t("home.greeting", { name: user?.name.split(" ")[0] ?? "" })}
+            {t("home.greeting", { name: firstName })}
           </h1>
           <p className="text-sm text-muted-foreground">{t("home.subtitle")}</p>
         </div>

@@ -1,0 +1,7 @@
+{
+  "name": "BharatiConnect",
+  "description": "Staff management and daily reading habit app for Akshar Bharati.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

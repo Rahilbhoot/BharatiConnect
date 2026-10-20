@@ -41,13 +41,7 @@ const items = [
   { to: "/admin/admins", icon: ShieldCheck, key: "admin.owners" },
 ] as const;
 
-export function AdminShell({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+export function AdminShell({ title, children }: { title: string; children: React.ReactNode }) {
   const { t } = useTranslation();
   const { adminUser } = useAppState();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
